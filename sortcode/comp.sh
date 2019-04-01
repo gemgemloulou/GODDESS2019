@@ -1,0 +1,1 @@
+g++ Sort.C -std=c++0x -I../include -L../../lib `root-config --cflags --libs` -lTreePlayer -lSpectrum -lGRETINA -lGODDESS -o SortData

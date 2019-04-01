@@ -1,0 +1,89 @@
+ TH2F *h_qqqdE = new TH2F("qqqdE","QQQ dE",32,0,32,500,0,5000);
+  TH1F *h_Eua = new TH1F("E_UA","E, UAdE",500,0,5000);
+  TH2F *h_EuaStr = new TH2F("E_UAStr","E, UAdEStr",32,0,32,500,0,5000);
+  TH1F *h_E = new TH1F("E","E, UAdE",500,0,5000);
+  TH1F *h_gam = new TH1F("gam","gam",5000,0,10000);
+  TH1F *h_edop = new TH1F("edop","edop",5000,0,10000);
+
+ for(size_t i=0;i<goddess->si.size();i++){
+      detectorOUT det = goddess->si.at(i);
+      if(goddess->siID.at(i)=="UA_dE"){
+	h_Eua->Fill(det.pECal);	
+	h_EuaStr->Fill(det.pStrip,det.pECal);
+      } else {
+	h_E->Fill(det.pECal);
+      }
+
+      // QQQs
+      if(goddess->siID.at(i)=="UA_dE"||goddess->siID.at(i)=="UB_dE"||goddess->siID.at(i)=="UC_dE"||goddess->siID.at(i)=="UD_dE"){
+	   
+	h_qqqdE->Fill(det.pStrip,det.pECal);
+      }
+    }
+	
+
+	h_E->Write();
+	h_Eua->Write();
+	h_EuaStr->Write();
+	h_gam->Write();
+	h_edop->Write();
+	h_qqqdE->Write();
+
+sx3 = 8 front, 4 back
+x and y are private?!
+
+bb10 = downstream dE; 8 front strips only!
+sx3 = like E, but upstream 
+cout for type = superx3 returned 0 for run 91!!
+
+ if(iverb) cout << goddess->siType.at(i) << endl;
+      if(goddess->siType.at(i) == "SuperX3" && det.upstream){
+	sx3u_pos_z[i] = (((det.eNearCal-det.eFarCal)/(det.eNearCal+det.eFarCal))*37.5)+37.5;
+	r = 100; //mm
+	sx3u_theta[i] = (TMath::ATan(sx3u_pos_z[i]/r) + (TMath::Pi())/2.)*(180./(TMath::Pi()));
+	sx3u_energy[i] = (det.eNearCal+det.eFarCal)*1000;
+	htheta->Fill(sx3u_theta[i]);
+	hEvTh->Fill(sx3u_theta[i],sx3u_energy[i]);
+	if(sx3u_energy[i]>2000) sx3u_mult++;
+	hmult->Fill(sx3u_mult);
+      }
+
+
+
+ // Write out a tree
+ 
+    /*  t->Branch("uSX3mult",&uSX3mult,"uSX3mult/i");
+  t->Branch("uSX3Pos",uSX3Pos,"uSX3Pos[uSX3mult]/f");
+  t->Branch("uSX3Theta",uSX3Theta,"uSX3Theta[uSX3mult]/f");
+  t->Branch("uSX3Energy",uSX3Energy,"uSX3Energy[uSX3mult]/f");
+  t->Branch("uSX3Ex",uSX3Ex,"uSX3Ex[uSX3mult]/f");
+  t->Branch("uSX3fStrip",uSX3fStrip,"uSX3fStrip[uSX3mult]/i");
+  t->Branch("uSX3bStrip",uSX3bStrip,"uSX3bStrip[uSX3mult]/i");
+ 
+  t->Branch("dSX3mult",&dSX3mult,"dSX3mult/i");
+  t->Branch("dSX3Pos",dSX3Pos,"dSX3Pos[dSX3mult]/f");
+  t->Branch("dSX3Theta",dSX3Theta,"dSX3Theta[dSX3mult]/f");
+  t->Branch("dSX3Energy",dSX3Energy,"dSX3Energy[dSX3mult]/f");
+  t->Branch("dSX3Ex",dSX3Ex,"dSX3Ex[dSX3mult]/f");
+  t->Branch("dSX3fStrip",dSX3fStrip,"dSX3fStrip[dSX3mult]/i");
+  t->Branch("dSX3bStrip",dSX3bStrip,"dSX3bStrip[dSX3mult]/i");
+  
+  t->Branch("uQmult",&uQmult,"uQmult/i");
+  t->Branch("uQTheta",uQTheta,"uQTheta[uQmult]/f");
+  t->Branch("uQEnergy",uQEnergy,"uQEnergy[uQmult]/f");
+  t->Branch("uQEx",uQEx,"uQEx[uQmult]/f");
+  t->Branch("uQfStrip",uQfStrip,"uQfStrip[uQmult]/i");
+  t->Branch("uQbStrip",uQbStrip,"uQbStrip[uQmult]/i");
+
+  t->Branch("dQmult",&dQmult,"dQmult/i");
+  t->Branch("dQTheta",dQTheta,"dQTheta[dQmult]/f");
+  t->Branch("dQEnergy",dQEnergy,"dQEnergy[dQmult]/f");
+  t->Branch("dQEx",dQEx,"dQEx[dQmult]/f");
+  t->Branch("dQfStrip",dQfStrip,"dQfStrip[dQmult]/i");
+  t->Branch("dQbStrip",dQbStrip,"dQbStrip[dQmult]/i");
+ 
+  t->Branch("SiMult",&SiMult,"SiMult/i");
+  t->Branch("SiEnergy",SiEnergy,"SiEnergy[SiMult]/f");
+  t->Branch("SiTheta",SiTheta,"SiTheta[SiMult]/f");
+  t->Branch("Ex",Ex,"Ex[SiMult]/f");
+    */

@@ -1,0 +1,96 @@
+#include "TObject.h"
+#include "TString.h"
+#include "TVector3.h"
+#include "TMath.h"
+#include "TRandom1.h"
+#include "TClass.h"
+#include <vector>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+
+#include "g2IntPt.h"
+
+
+/* Single interaction point structure */
+struct ip { 
+  Float_t x, y, z, e; /* Here, e refers to the fraction. */
+  Int_t seg; /* Segment hit. */
+  Float_t seg_energy; /* Energy of hit segment. */
+};
+
+struct ipOLD {
+  Float_t x, y, z, e;
+};
+
+struct mode2Old {
+  Int_t num; 
+  Int_t crystal_id;
+  Float_t tot_e;
+  Float_t t0;
+  Float_t chisq;
+  Float_t norm_chisq;
+  long long int timestamp;
+  ipOLD intpts[MAX_INTPTS];
+};
+
+struct mode2ABCD1234 {
+  Int_t type;
+  Int_t crystal_id;
+  Int_t num;
+  Float_t tot_e;
+  long long int timestamp;
+  long long trig_time; 
+  Float_t t0; 
+  Float_t cfd;
+  Float_t chisq;
+  Float_t norm_chisq;
+  Float_t baseline;
+  Int_t pad; /* To ensure 8-byte alignment of struct. */
+  ip intpts[MAX_INTPTS];
+};
+
+struct mode2ABCD5678 {
+  Int_t type;
+  Int_t crystal_id;
+  Int_t num;
+  Float_t tot_e;
+  Int_t core_e[4];
+  long long int timestamp;
+  long long trig_time;
+  Float_t t0;
+  Float_t cfd;
+  Float_t chisq;
+  Float_t norm_chisq;
+  Float_t baseline;
+  Float_t prestep;
+  Float_t poststep;
+  Int_t pad;
+  ip intpts[MAX_INTPTS];
+};
+
+struct mode2ABCD6789 {
+  Int_t type;
+  Int_t crystal_id;
+  Int_t num;
+  Float_t tot_e;
+  Int_t core_e[4];
+  long long int timestamp;
+  /* Used for history-based energy correction at rate */
+  Float_t totE_fixedPickOff_prior1;
+  Float_t totE_fixedPickOff_prior2;
+  Float_t t0;
+  /* Used for history-based energy correction at rate */
+  UShort_t deltaT_prior1;
+  UShort_t deltaT_prior2;
+  Float_t chisq;
+  Float_t norm_chisq;
+  /* Used for history-based energy correction at rate */
+  Float_t totE_fixedPickOff_current;
+  Float_t prestep;
+  Float_t poststep;
+  Int_t pad;
+  ip intpts[MAX_INTPTS];
+
+};
