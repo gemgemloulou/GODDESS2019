@@ -1,6 +1,10 @@
 #ifndef Sortcode_h
 #define Sortcode_h
 
+#define MAXSILICON 48 // The name you want to touch
+#define MAXGRETINA 44 // ... but you must not touch
+
+#include <math.h>
 #include <iostream>
 #include "TCutG.h"
 #include <iomanip>
@@ -18,11 +22,13 @@
 #include "detectorOut.h"
 #include "../../include/GRETINA.h"
 #include <fstream>
+#include "TMath.h"
 
 #include "TBranch.h"
 #include "TROOT.h"
 #include <TVector3.h>
 #include <TObject.h>
+#include <TLorentzVector.h>
 
 class Sortcode {
 
@@ -31,51 +37,71 @@ class Sortcode {
   Int_t fCurrent;
 
   Sortcode(){;} 
-  //void SortData(char*, char*);
   void SortData(Int_t );
+  TLorentzVector GetRecoilVector(int);
+  TLorentzVector GetRecoilVector(double,double,double,double);
   Int_t j,i,k,m,n,s,q,g;
-  
-   Double_t vex, vcmsq, e3cm;
-   Double_t SteveEx[48];
-   Double_t v1, vcm, ecm;
+ 
+  TGraph* MakeCatKinematics(double);
 
-  Double_t uSX3Pos[48];
-  Double_t uSX3Theta[48];
-  Double_t uSX3Energy[48];
-  Double_t uSX3Ex[48];
-  Int_t uSX3fStrip[48];
-  Int_t uSX3bStrip[48];
+  static double m1; 
+  static double m2; 
+  static double m3; 
+  static double m4;
+  static double PI;
+  static double T1;
+  TVector3 xyzlab;
+
+  double  xlab[MAXSILICON];
+  double  ylab[MAXSILICON];
+  double  zlab[MAXSILICON];
+
+  Double_t uSX3Pos[MAXSILICON];
+  Double_t uSX3Theta[MAXSILICON];
+  Double_t uSX3Energy[MAXSILICON];
+  Double_t uSX3Ex[MAXSILICON];
+  Double_t uSX3E3[MAXSILICON];
+  Double_t uSX3p3[MAXSILICON];
+  Int_t uSX3fStrip[MAXSILICON];
+  Int_t uSX3bStrip[MAXSILICON];
   Int_t uSX3mult;
 
-  Double_t dSX3Pos[48];
-  Double_t dSX3Theta[48];
-  Double_t dSX3Energy[48];
-  Double_t dSX3Ex[48];
-  Int_t dSX3fStrip[48];
-  Int_t dSX3bStrip[48];
+  Double_t dSX3Pos[MAXSILICON];
+  Double_t dSX3Theta[MAXSILICON];
+  Double_t dSX3Energy[MAXSILICON];
+  Double_t dSX3Ex[MAXSILICON];
+  Int_t dSX3fStrip[MAXSILICON];
+  Int_t dSX3bStrip[MAXSILICON];
+  Double_t dSX3E3[MAXSILICON];
+  Double_t dSX3p3[MAXSILICON];
   Int_t dSX3mult;
 
  
-  Double_t uQTheta[48]; // This should probably be higher but it's v unlikely
-  Double_t uQEnergy[48];
-  Double_t uQEx[48];
-  Double_t uQExAR[48];
-  Int_t uQfStrip[48];
-  Int_t uQbStrip[48];
+  Double_t uQTheta[MAXSILICON]; // This should probably be higher but it's v unlikely
+  Double_t uQEnergy[MAXSILICON];
+  Double_t uQEx[MAXSILICON];
+  Double_t uQExAR[MAXSILICON];
+  Int_t uQfStrip[MAXSILICON];
+  Int_t uQbStrip[MAXSILICON];
+  Int_t BackStrip[MAXSILICON];
+  Double_t uQE3[MAXSILICON];
+  Double_t uQp3[MAXSILICON];
+  Double_t uQQQphi[4][4];
+  Double_t uQPhi[MAXSILICON];
   Int_t uQmult; 
 
-  Double_t dQTheta[48]; // This should probably be higher but it's v unlikely
-  Double_t dQEnergy[48];
-  Double_t dQEx[48];
-  Double_t Q[48];
-  Int_t dQfStrip[48];
-  Int_t dQbStrip[48];
+  Double_t dQTheta[MAXSILICON]; // This should probably be higher but it's v unlikely
+  Double_t dQEnergy[MAXSILICON];
+  Double_t dQEx[MAXSILICON];
+  Double_t dQE3[MAXSILICON];
+  Double_t dQp3[MAXSILICON];
+  Int_t dQfStrip[MAXSILICON];
+  Int_t dQbStrip[MAXSILICON];
   Int_t dQmult; 
 
-  Double_t SiEnergy[48];
-  //Double_t pos[48];
-  Double_t SiTheta[48];
-  Double_t Ex[48];
+  Double_t SiEnergy[MAXSILICON];
+  Double_t SiTheta[MAXSILICON];
+  Double_t Ex[MAXSILICON];
   Int_t SiMult;
 	
   Double_t dQQQang[32], uQQQang[32];
@@ -96,36 +122,33 @@ class Sortcode {
   Double_t dSX3fgain[12][8];
   Double_t dSX3foffset[12][8];
   
+  // Double_t uSX3bgain[12][4][4];
+  // Double_t uSX3boffset[12][4][4];
   Double_t uSX3bgain[12][4];
   Double_t uSX3boffset[12][4];
   Double_t dSX3bgain[12][4];
   Double_t dSX3boffset[12][4];	
 
-  Double_t uSX3posgain[12][4];
-  Double_t uSX3posoffset[12][4];
-  Double_t dSX3posgain[12][4];
-  Double_t dSX3posoffset[12][4];
+  Double_t uSX3L[12][4];
+  Double_t uSX3R[12][4];
+  Double_t dSX3L[12][4];
+  Double_t dSX3R[12][4];
 
   Int_t uQQQ, dQQQ, uSX3, dSX3, dBB10;
-  Double_t E3, p3;
+  
        
   //maximum crys number = 44
   Int_t quadCut[11];
-  Float_t gamE[44];
-  Float_t edop[44];
-  Float_t edopSeg[44];
-  Float_t edopXtal[44];
-  Int_t quadNum[44];
-  Int_t crysNum[44];
-  Float_t t0[44];
+  Float_t gamE[MAXGRETINA];
+  Float_t edop[MAXGRETINA];
+  Float_t edopSeg[MAXGRETINA];
+  Float_t edopXtal[MAXGRETINA];
+  Int_t quadNum[MAXGRETINA];
+  Int_t crysNum[MAXGRETINA];
+  Float_t t0[MAXGRETINA];
   Int_t crysMult;
-  
-  //Int_t quadMult;
 };
 #endif
 
 #ifdef Sortcode_cxx
-//TFile *infile = new TFile("/global/data1b/gretina/1707_data1b/Run0091/Run0091.root","READ");
-//TFile *infile = new TFile(infilename,"READ");  
-//	TTree *AnalysisTree = (TTree*)infile->Get("teb");
 #endif
