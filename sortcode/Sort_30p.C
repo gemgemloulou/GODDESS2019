@@ -5,17 +5,17 @@
 
 #define Sortcode_cxx
 
-#include "Sort.h"
+#include "Sort_30p.h"
 
 using namespace std;
 
 // Some static variables for the code
-double Sortcode::m1 = 133.911369*931.494013; // mass of beam, 134Te
+double  Sortcode::m1 = 29.978313489*931.494013; // mass of beam, 30P
 double  Sortcode::m2 = 2.0141077785*931.494013; // target mass, d
 double  Sortcode::m3 = 1.00782503207*931.494013; // ejectile mass, p
-double Sortcode::m4 = 134.91645 * 931.494013; // recoil mass, 135Te
+double  Sortcode::m4 = 30.97376199863*931.494013; // recoil mass, 31P
 double  Sortcode::PI = 4.0*atan(1.0); // Pi is a very special number, used by clever people who like circles. Basically just 3. B.S.J.
-double  Sortcode::T1 = 1192.; // 8.9 MeV/u for 134Te. Not corrected yet for losses in the target
+double  Sortcode::T1 = 236.237; // Andrew's number for 30P
 void Sortcode::SortData(Int_t RunNum){
 
   std::string dNames[5] = {"uQQQ","dQQQ","uSX3","dSX3","dBB10"};
@@ -27,50 +27,43 @@ void Sortcode::SortData(Int_t RunNum){
   // ***************************************************
 
   char runbuf[128];
- if(RunNum<10){ 
-     sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run000%d/Run000%d.root",RunNum,RunNum); // 134Te
-  }
- else if(RunNum<100){ 
-      sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run00%d/Run00%d.root",RunNum,RunNum); // 134Te
+ if(RunNum<100){ 
+     sprintf(runbuf, "/global/data1b/gretina/1707_data1b/Run00%d/Run00%d.root",RunNum,RunNum); // 30P
   }
   else{
-     sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run0%d/Run0%d.root",RunNum,RunNum); 
+    sprintf(runbuf, "/global/data1b/gretina/1707_data1b/Run0%d/Run0%d.root",RunNum,RunNum); 
   }
 
   char outbuf[128];
   
-  if((RunNum>49 && RunNum<56)||(RunNum>70 && RunNum<75)){
-    sprintf(outbuf,"/global/data1b/gretina/1484_data1b/Histograms/bkgd_hist%d.root",RunNum);
+  if(RunNum>202 && RunNum<232){
+    sprintf(outbuf,"/global/data1b/gretina/1707_data1b/Histograms/CH2_hist%d.root",RunNum);
   }else{
-   sprintf(outbuf,"/global/data1b/gretina/1484_data1b/Histograms/hist%d.root",RunNum);
-      }
-     
-     
+    sprintf(outbuf,"/global/data1b/gretina/1707_data1b/Histograms/hist%d.root",RunNum);
+  }
 
   TFile *infile = new TFile(runbuf,"READ");
   TTree *AnalysisTree = (TTree*)infile->Get("teb");
   TFile *outfile = new TFile(outbuf,"RECREATE");
 
-   TFile *fcuts = new TFile("/global/data1b/gretina/1484_data1b/cuts.root","READ"); 
-   TFile *dc = new TFile("/global/data1b/gretina/1484_data1b/dirkcut.root","READ"); 
-
-   // read in Dirk cuts
-   TCutG *cutdirk = (TCutG *)dc->Get("dirk");
-   TCutG *cutundirk = (TCutG *)dc->Get("undirk");
-
-   if(!cutdirk) cout << "no dirk" << endl;
-   if(!cutundirk) cout << "no undirk" << endl;
-
+   TFile *fcuts = new TFile("/global/data1b/gretina/1707_data1b/cuts.root","READ"); // 30P cuts
+ 
+ 
 
   //Use the run number to reference which cut you need! Yeah boi
   char cutname[32];
 
-    if(RunNum==4){
-    sprintf(cutname,"cut%d",16);
+  // *********************************************************************************************
+  // ******* crap runs, 30P *********** 
+
+  if(RunNum<74 || RunNum==107 || RunNum==110 || RunNum==289 || RunNum==331 || RunNum==339){
+    // not analysing runs prior to 74, rest are dud and I don't want complaints. 
+    sprintf(cutname,"cut%d",101); // a random choice. Shrug
   }else{
     sprintf(cutname,"cut%d",RunNum);
-    }
+  }
 
+ 
 // *********************************************************************************************
   TCutG *cutIC = (TCutG *)fcuts->Get(cutname);
   
@@ -248,7 +241,7 @@ void Sortcode::SortData(Int_t RunNum){
   TH1F *hEx_upstream_ICTDC = new TH1F("Ex_upstream_ICTDC","Ex_upstream_ICTDC",500,-10,40);
   TH1F *huQEx = new TH1F("uQEx","Ex in uQQQ, 400<tdc0<1250, IC cut",1100,-4,18);
   TH1F *huQEx_bg = new TH1F("uQEx_bg","Time-random background Ex in uQQQ, 1300<tdc0<2150, IC cut",1100,-4,18);
-  TH1F *huSXEx = new TH1F("uSXEx","Ex in uSX3, 400<tdc0<1250, IC cut",1100,-4,18);
+  TH1F *huSXEx = new TH1F("uSXEx","Ex in uSX3, 400<tdc0<1250, 30P IC cut",1100,-4,18);
   TH1F *huSXEx_bg = new TH1F("uSXEx_bg","Time-random background Ex in uSX3, 1300<tdc0<2150, IC cut",1100,-4,18);
   
   TH2F *hICxy = new TH2F("ICxy","IC x vs y, ungated",32,0,32,32,0,32);
@@ -347,7 +340,6 @@ void Sortcode::SortData(Int_t RunNum){
     uQmult = dQmult = 0;
     crysMult = 0;
    
-
     // ------------------------------------------------------------------------------------------------
     // if(iverb) cout << endl << "vector size check, entry " << jentry << endl;
     //if(iverb) cout << "goddess size = " << goddess->si.size() << endl;
@@ -424,10 +416,10 @@ void Sortcode::SortData(Int_t RunNum){
        
         uSX3fStrip[uSX3mult] = det.pStrip;
         uSX3bStrip[uSX3mult] = det.nStrip;
-	if(iverb) cout << "F strip = " <<  uSX3fStrip[uSX3mult] << ", back " <<  uSX3bStrip[uSX3mult] << endl;
-        uSX3Pos[uSX3mult] = ((((det.eFarCal-det.eNearCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)+37.5; // Henderswan
+	//cout << "F strip = " <<  uSX3fStrip[uSX3mult] << ", back " <<  uSX3bStrip[uSX3mult] << endl;
+	// uSX3Pos[uSX3mult] = ((((det.eFarCal-det.eNearCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)+37.5; // Henderswan
 	huFudge->Fill((((det.eFarCal-det.eNearCal))/(det.eNearCal+det.eFarCal))); // Henderswan
-	// uSX3Pos[uSX3mult] = (((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip])*37.5)+37.5;
+        uSX3Pos[uSX3mult] = (((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip])*37.5)+37.5;
 	// uSX3Pos[uSX3mult] = (((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip])*37.5)+37.5;
 	hpos->Fill(uSX3Pos[uSX3mult]);
 	//cout << "uSX3Pos["<<uSX3mult<<"] = " << ((((det.eFarCal-det.eNearCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)+37.5 << " or " << uSX3Pos[uSX3mult] << endl; 
@@ -480,10 +472,10 @@ void Sortcode::SortData(Int_t RunNum){
         // eFar = (det.eFarCal * gain) + offset;
         dSX3fStrip[dSX3mult] = det.pStrip;
         dSX3bStrip[dSX3mult] = det.nStrip;
-        dSX3Pos[dSX3mult] = ((((det.eNearCal-det.eFarCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)-37.5;
+	// dSX3Pos[dSX3mult] = ((((det.eNearCal-det.eFarCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)-37.5;
 	hdFudge->Fill(((det.eNearCal-det.eFarCal))/(det.eNearCal+det.eFarCal));
-	//dSX3Pos[dSX3mult] = (((det.eNearCal-det.eFarCal)/(det.eFarCal+det.eNearCal)+dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip])*37.5)-37.5;
-
+	//dSX3Pos[dSX3mult] = (((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)+dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip])*37.5)-37.5;
+       	dSX3Pos[dSX3mult] = (((det.eNearCal-det.eFarCal)/(det.eFarCal+det.eNearCal)-dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip])*37.5)-37.5;
 	//	cout << "dSX3Pos " << ((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip]) << endl;
 	//	cout << "dSX3Pos["<<dSX3mult<<"] = " << ((((det.eNearCal-det.eFarCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)-37.5 << " or " << dSX3Pos[dSX3mult] << endl; 
 	//	cout << "left["<<dSX3<<"]["<<det.pStrip<<"] = " << dSX3L[dSX3][det.pStrip] << ", right["<<dSX3<<"]["<<det.pStrip<<"] = " << dSX3R[dSX3][det.pStrip] << endl;
@@ -663,19 +655,11 @@ void Sortcode::SortData(Int_t RunNum){
         }
       }
        
-	for(s=0;s<SiMult;s++){
-	  if(cutIC->IsInside(goddess->icE,goddess->icDE)){
-	  if(SiEnergy[s]>1500){
-	  if(cutdirk->IsInside(t0[k],edop[k])){
-		hedop_ICdirk->Fill(edop[k]);
-	  }else if(cutundirk->IsInside(t0[k],edop[k])){
-		hedop_ICbkdirk->Fill(edop[k]);
-	      }
-	    }
-	  }
-		}
-      
+    }
 	  
+ if(cutIC->IsInside(goddess->icE,goddess->icDE)){
+      if(iverb) cout << "entry "<<jentry<<" has a hit in the IC" << endl;
+      hIC_test->Fill(goddess->icDE,goddess->icE);
 
       if(cutIC->IsInside(goddess->icE,goddess->icDE)){
         if (iverb) cout << "entry " << jentry << " inside the fill loop" << endl;
@@ -687,7 +671,7 @@ void Sortcode::SortData(Int_t RunNum){
 	 }
         if (iverb) cout << "in QQQ mult = " << uQmult << endl << endl;
         for(m=0;m<uQmult;m++){
-	  // if(uQEnergy[m]>3000)
+          if(uQEnergy[m]>3000)
             hedop_ICuQ->Fill(edop[k]);
         }
         if(iverb) cout << "inside fill Si mult = " << SiMult << endl;
@@ -696,8 +680,8 @@ void Sortcode::SortData(Int_t RunNum){
             hedop_ICSi->Fill(edop[k]);
         }
       }
-    
-    } 
+    }
+       
 
     // Filling Ex vs gamma ray energy spectra, for all silicon
     for(s=0;s<SiMult;s++){
@@ -941,7 +925,7 @@ void Sortcode::SortData(Int_t RunNum){
     hCryI[ii]->Write();
   }
   fcuts->Close();
-  dc->Close();
+ 
   outfile->Close();
 
   }
