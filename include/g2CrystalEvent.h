@@ -33,6 +33,7 @@ class g2CrystalEvent : public TObject {
   Int_t error;
   Float_t cc;
   Float_t edop; //glw
+  Float_t edop_maxInt; //AR
   Float_t edopSeg; //glw
   Float_t edopXtal; //glw
   Float_t ccCurrent, ccPrior1, ccPrior2;
@@ -41,6 +42,7 @@ class g2CrystalEvent : public TObject {
   Float_t segSum;
   Float_t doppler;
   Float_t dopplerSeg;
+  Float_t dopplerSegOffset;
   Float_t dopplerCrystal;
   vector<g2IntPt> intpts;
   vector<Short_t> waveAll;

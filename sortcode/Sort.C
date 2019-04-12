@@ -11,11 +11,16 @@ using namespace std;
 
 // Some static variables for the code
 double Sortcode::m1 = 133.911369*931.494013; // mass of beam, 134Te
-double  Sortcode::m2 = 2.0141077785*931.494013; // target mass, d
-double  Sortcode::m3 = 1.00782503207*931.494013; // ejectile mass, p
+double Sortcode::m2 = 2.0141077785*931.494013; // target mass, d
+double Sortcode::m3 = 1.00782503207*931.494013; // ejectile mass, p
 double Sortcode::m4 = 134.91645 * 931.494013; // recoil mass, 135Te
-double  Sortcode::PI = 4.0*atan(1.0); // Pi is a very special number, used by clever people who like circles. Basically just 3. B.S.J.
-double  Sortcode::T1 = 1192.; // 8.9 MeV/u for 134Te. Not corrected yet for losses in the target
+double Sortcode::PI = 4.0*atan(1.0); // Pi is a very special number, used by clever people who like circles. Basically just 3. B.S.J.
+double Sortcode::T1 = 1192.; // 8.9 MeV/u for 134Te. Not corrected yet for losses in the target
+
+
+//double Sortcode::m1_i = 133.909776*931.494013; // mass of beam, 134I
+//double Sortcode::m4_i = 134.9100594*931.494013; // recoil mass, 135I
+
 void Sortcode::SortData(Int_t RunNum){
 
   std::string dNames[5] = {"uQQQ","dQQQ","uSX3","dSX3","dBB10"};
@@ -23,40 +28,65 @@ void Sortcode::SortData(Int_t RunNum){
   // ***************************************************
   // ***** Call the exterminator! You've got bugs! *****
   /* *********** */ Bool_t iverb = 0; /* ************ */
+  /* ********* */ Bool_t iverbGam = 0; /* *********** */
   // ***************************************************
   // ***************************************************
 
   char runbuf[128];
  if(RunNum<10){ 
      sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run000%d/Run000%d.root",RunNum,RunNum); // 134Te
-  }
- else if(RunNum<100){ 
-      sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run00%d/Run00%d.root",RunNum,RunNum); // 134Te
-  }
-  else{
+  } else if(RunNum<100){ 
+     sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run00%d/Run00%d.root",RunNum,RunNum); // 134Te
+  }else{
      sprintf(runbuf, "/global/data1b/gretina/1484_data1b/Run0%d/Run0%d.root",RunNum,RunNum); 
   }
 
   char outbuf[128];
   
-  if((RunNum>49 && RunNum<56)||(RunNum>70 && RunNum<75)){
+  if((RunNum>49 && RunNum<56)||(RunNum>70 && RunNum<75)||(RunNum==257)||(RunNum==305)){
     sprintf(outbuf,"/global/data1b/gretina/1484_data1b/Histograms/bkgd_hist%d.root",RunNum);
+  }else if(RunNum==390){
+    sprintf(outbuf,"/global/data1b/gretina/1484_data1b/Histograms/notarget_hist%d.root",RunNum);
+  }else if(RunNum==389||RunNum>391){
+    sprintf(outbuf,"/global/data1b/gretina/1484_data1b/Histograms/CH2_hist%d.root",RunNum);
   }else{
    sprintf(outbuf,"/global/data1b/gretina/1484_data1b/Histograms/hist%d.root",RunNum);
       }
      
      
-
   TFile *infile = new TFile(runbuf,"READ");
   TTree *AnalysisTree = (TTree*)infile->Get("teb");
   TFile *outfile = new TFile(outbuf,"RECREATE");
 
    TFile *fcuts = new TFile("/global/data1b/gretina/1484_data1b/cuts.root","READ"); 
    TFile *dc = new TFile("/global/data1b/gretina/1484_data1b/dirkcut.root","READ"); 
+   TFile *gc = new TFile("/global/data1b/gretina/1484_data1b/globalCuts.root","READ");
+
+   /* ************************************************************************************* */
+   /* A note about the cuts! Cuts on the 134te peak have been done run by run - these are   */
+   /* read in from cuts.root, they're called cut[runNum] and is called CutIC throughout the */ 
+   /* code. These cuts 'contain' uncorrected ICdE and ICE values, as they're run by run and */
+   /* subject to shifting around. We're still kinda using these for now, and that's fine.   */
+   /* ************************************************************************************* */
+   /* Andrew Ratkiewicz wrote a script that essentially gain matches the E and the dE for   */
+   /* the IC. If the gains are read in run by run, the gain shifted E and dE in the IC will */
+   /* all line up. Then we can use One Cut To Fit Them All, which are stored in the file    */
+   /* globalCuts.root. When checking if an event is inside these cuts, you MUST use the     */
+   /* gainmatched E and dE. Otherwise it could be anywhere. We're working towards using one */
+   /* system, but I want it to be foolproof. (I realise using two systems simultaneously is */
+   /* probably a bad idea, but hey ho!)                                                     */ 
+   /*        - Gemma, 4/4/19 (Hey look! A date that's correct in the UK and the US!)        */
+   /* ************************************************************************************* */
 
    // read in Dirk cuts
    TCutG *cutdirk = (TCutG *)dc->Get("dirk");
    TCutG *cutundirk = (TCutG *)dc->Get("undirk");
+
+   // read in global IC cuts
+   TCutG *cut_134Te = (TCutG *)gc->Get("te134"); // IC cut one locus out of the 4 grouped together (gainmatched dE, E values)
+   TCutG *cut_134I = (TCutG *)gc->Get("i134"); // IC cut, the one immediately to the left of ^^ (gainmatched dE, E values)
+   TCutG *cut_tedp = (TCutG *)gc->Get("tedp"); // proton kinematic lines from energy v theta from upstream Si
+   TCutG *cut_whole = (TCutG *)gc->Get("te134_whole"); // IC cut on the whole sausage (gainmatched dE, E values)
 
    if(!cutdirk) cout << "no dirk" << endl;
    if(!cutundirk) cout << "no undirk" << endl;
@@ -75,10 +105,10 @@ void Sortcode::SortData(Int_t RunNum){
   TCutG *cutIC = (TCutG *)fcuts->Get(cutname);
   
   if(!cutIC){
-    cout << "Cannae find yer IC cut for run "<<RunNum<<"! Using something potentially substandard." << endl;
-    sprintf(cutname,"cut%d",15);
-    cout << "cutname in broke loop " << cutname << endl;
+    cout << "Cannae find yer IC cut for run "<< RunNum <<"! Attempting to use a cut from the previous run: ";
+    sprintf(cutname,"cut%d",(RunNum-1));
     cutIC = (TCutG *)fcuts->Get(cutname);
+    cout << cutname << endl;
   }
 
   //----------------------------------------------------------------------------------------------------
@@ -97,6 +127,34 @@ void Sortcode::SortData(Int_t RunNum){
   /* * * * * * * * * * * * * I T ' S  A  C A L I B R A T I O N ! * * * * * * * * * * * * * */
   /* ************************************************************************************* */
 
+  /* Andrew's IC calibration */
+
+  double IC_gain[450][2];
+  int temp1;
+  double temp2, temp3;
+
+  ifstream ic_cal("CalFiles/ic_cor.dat",ios::in);
+  // intialize the IC gains, so if there's no gain in the file for that run nothing happens to the centroid
+  for (i = 0; i < 450; i++) {
+    IC_gain[i][0] = 1.0;
+    IC_gain[i][1] = 1.0;      
+  }
+
+  if (!ic_cal) {
+    printf("couldn't open file at %s","CalFiles/ic_cor.dat");
+    exit(1);
+  } else {
+    // this will read forever (or until it runs out of spaces in IC_gain).
+    while (ic_cal >> temp1 >> temp2 >> temp3 ) {
+      IC_gain[temp1][0] = temp2; // dE
+      IC_gain[temp1][1] = temp3; // E
+
+      //  cout << "IC_gain["<<temp1<<"][0] = " << temp2 << ", IC_gain["<<temp1<<"][1] = " << temp2 << endl;
+    }
+  }
+
+  ic_cal.close();
+ 
   /* For gains and offsets, the notation is [up/down][det][f/b]gain[det num][strip num] */
   /* so, uSX3fgain[3][4] = gain of upstream SuperX3, detector 4/12, strip 5/8 */
 
@@ -134,6 +192,8 @@ void Sortcode::SortData(Int_t RunNum){
     ufQQQcal >> uQfgain[i/32][i%32] >> uQfoffset[i/32][i%32]; 
   }
   ufQQQcal.close();
+
+
   // --------------------------------------------------------------------------------------------------
 
   /* BB10 */
@@ -170,6 +230,7 @@ void Sortcode::SortData(Int_t RunNum){
   //  uSX3b >> uSX3bgain[i/4][i%4][j] >> uSX3boffset[i/4][i%4][j];
   //  }
   // }
+  // *** This has been commented out until we have the calibration for all detectors
 
   // rough back strip calibration - i.e. no cross talk effects! 
   for(i=0;i<48;i++){
@@ -209,7 +270,7 @@ void Sortcode::SortData(Int_t RunNum){
   // -----------------------------------------------------------------------------------------------
 
   TList *rawGamList = new TList;
-  TH1F *hgam = new TH1F("gam","gamma energy",1000,0,10000); rawGamList->Add(hgam);
+  TH1F *hgam = new TH1F("gam","gamma energy",5000,0,10000); rawGamList->Add(hgam);
 
   // AR
   TH1F *hCryI[11]; // crystal-by-crystal rest frame gammas
@@ -217,44 +278,56 @@ void Sortcode::SortData(Int_t RunNum){
     hCryI[ii] = new TH1F(Form("hCR_%01i",ii),Form("rest frame gammas for crystal %01i",ii),
 		     10000,0,10000); rawGamList->Add(hCryI[ii]);
   }
-  //
-  TH1F *hedop = new TH1F("edop","doppler corrected (basic) egam",1000,0,10000); rawGamList->Add(hedop);
-  TH1F *hedopSeg = new TH1F("edopSeg","doppler corrected (seg) egam",1000,0,10000); rawGamList->Add(hedopSeg);
-  TH1F *hedopXtal = new TH1F("edopXtal","doppler corrected (xtal) egam",1000,0,10000); rawGamList->Add(hedopXtal);
-  TH1F *hedop_IC = new TH1F("edop_IC","edop, gate in IC",1000,0,10000);
+  
+  TH1F *hedop = new TH1F("edop","doppler corrected (basic) egam",5000,0,10000); rawGamList->Add(hedop);
+  TH1F *hedopSeg = new TH1F("edopSeg","doppler corrected (seg) egam",5000,0,10000); rawGamList->Add(hedopSeg);
+  TH1F *hedopXtal = new TH1F("edopXtal","doppler corrected (xtal) egam",5000,0,10000); rawGamList->Add(hedopXtal);
+  TH1F *hedop_maxInt = new TH1F("edop_maxInt","doppler corrected egam using max e int point",5000,0,10000); rawGamList->Add(hedop_maxInt);
+  TH1F *hedop_IC = new TH1F("edop_IC","edop, gate in IC",5000,0,10000);
   TH1F *hedop_ICTDC = new TH1F("edop_ICTDC","edop, IC and TDC gate",5000,0,10000);
+  TH1F *hedopMI_IC = new TH1F("edopMI_IC","edop (using max int), IC gate",5000,0,10000);
+  TH1F *hedop_ICTDCSi = new TH1F("edop_ICTDCSi","edop, IC, E > 1MeV in all Si and TDC gate",5000,0,10000);
+  TH1F *hedop_ICTDCSiBk = new TH1F("edop_ICTDCSiBk","edop, IC, E > 1MeV in all Si and bkgd TDC gate",5000,0,10000);
   TH1F *hedop_ICbkTDC = new TH1F("edop_ICbkTDC","edop, good IC gate but bkgd TDC 1300<tdc0<2150 ",5000,0,10000);
-  TH1F *hedop_ICSi = new TH1F("edop_ICSi","edop, IC, E>2MeV in all Si",1000,0,10000);
-  TH1F *hedop_ICuQ = new TH1F("edop_ICuQ","edop, IC, E>2MeV in uQQQ",1000,0,10000);
-  TH1F *hedopuQ_ICTDC = new TH1F("edopuQ_ICTDC","edop, IC, TDC, E>2MeV in uQQQ",1000,0,10000);
-  TH1F *htheta = new TH1F("theta","theta of silicon",180,0,180);
+  TH1F *hedop_ICSi = new TH1F("edop_ICSi","edop, IC, E>2MeV in all Si",5000,0,10000);
+  TH1F *hedop_ICuQ = new TH1F("edop_ICuQ","edop, IC, E>2MeV in uQQQ",5000,0,10000);
+  TH1F *hedopuQ_ICTDC = new TH1F("edopuQ_ICTDC","edop, IC, TDC, E>2MeV in uQQQ",5000,0,10000);
+  TH1F *hedop_dSX3 = new TH1F("edop_dSX3","doppler corrected egam, dSX3>2MeV",5000,0,10000);
+ 
+  TH1F *htheta = new TH1F("theta","silicon theta",180,0,180);
   TH1F *hSteve = new TH1F("Steve","edop, EQQQ>3MeV, ICE>200",2000,0,10000);
   TH1F *hEBE_egam = new TH1F("EBE_egam","event by event Edop, uQQQ, TDC & IC",2000,0,10000);
   TH2F *hDirk = new TH2F("Dirk","Dirk gate",60,60,120,8000,0,16000);
 
-  TH1F *hpos = new TH1F("pos","pos",1000,-500,500);
-  TH1F *huFudge = new TH1F("ufudge","ufudge",100,-5,5);
-  TH1F *hdFudge = new TH1F("dfudge","dfudge",100,-5,5);
+  TH2F *hpos = new TH2F("pos","pos",1000,-3,3,100,0,100);
+
   TH1F *hedop_ICdirk = new TH1F("edop_ICdirk","doppler corrected Egam, IC and dirk gate",5000,0,10000);
   TH1F *hedop_ICbkdirk = new TH1F("edop_ICbkdirk","doppler corrected Egam, IC and background dirk gate",5000,0,10000);
-
+ 
   TH2F *hGamTdc2 = new TH2F("GamTdc2","Gamma energy vs TDC2",1000,0,2000,1100,-400,4000);
 
   TH2F *hSiEvTh = new TH2F("SiEvTh","E v Th for all Si",180,0,180,5000,0,20000);
   TH2F *hSiEvTh_IC = new TH2F("SiEvTh_IC","E v Th for all Si, IC gate",180,0,180,5000,0,20000);
   TH2F *hSiEvTh_ICTDC = new TH2F("SiEvTh_ICTDC","E v Th for all Si, IC & TDC",180,0,180,5000,0,20000);
+  TH2F *hSiEvTh_wlIC = new TH2F("SiEvTh_wlIC","E v Th for all Si, whole locus IC gate",180,0,180,5000,0,20000);
+  TH2F *hSiEvTh_wlICTDC = new TH2F("SiEvTh_wlICTDC","E v Th for all Si, whole locus IC & TDC",180,0,180,5000,0,20000);
+  TH2F *hSiEvTh_WIC = new TH2F("SiEvTh_WIC","E v Th for all Si, whole IC gate",180,0,180,5000,0,20000);
+  TH2F *hSiEvTh_WICTDC = new TH2F("SiEvTh_WICTDC","E v Th for all Si, whole IC & TDC",180,0,180,5000,0,20000);
+
   TH1F *hEx = new TH1F("Ex","Ex, all si",500,-10,40);
   TH1F *hEx_upstream = new TH1F("Ex_upstream","Ex_upstream",500,-10,40);
   TH1F *hEx_upstream_ICTDC = new TH1F("Ex_upstream_ICTDC","Ex_upstream_ICTDC",500,-10,40);
-  TH1F *huQEx = new TH1F("uQEx","Ex in uQQQ, 400<tdc0<1250, IC cut",1100,-4,18);
-  TH1F *huQEx_bg = new TH1F("uQEx_bg","Time-random background Ex in uQQQ, 1300<tdc0<2150, IC cut",1100,-4,18);
-  TH1F *huSXEx = new TH1F("uSXEx","Ex in uSX3, 400<tdc0<1250, IC cut",1100,-4,18);
-  TH1F *huSXEx_bg = new TH1F("uSXEx_bg","Time-random background Ex in uSX3, 1300<tdc0<2150, IC cut",1100,-4,18);
-  
+  TH1F *huQEx = new TH1F("uQEx","Ex in uQQQ, 500<tdc0<900, IC cut",100,-4,14);
+  TH1F *huQEx_bg = new TH1F("uQEx_bg","Time-random background Ex in uQQQ, 1300<tdc0<2150, IC cut",100,-4,14);
+  TH1F *huSXEx = new TH1F("uSXEx","Ex in uSX3, 500<tdc0<900, IC cut",100,-4,14);
+  TH1F *huSXEx_bg = new TH1F("uSXEx_bg","Time-random background Ex in uSX3, 1300<tdc0<2150, IC cut",100,-4,14);
+
   TH2F *hICxy = new TH2F("ICxy","IC x vs y, ungated",32,0,32,32,0,32);
   TH2F *hIC_EdE = new TH2F("IC_EdE","IC E vs dE, ungated",600,0,4800,600,0,4800);
   TH2F *hIC_test = new TH2F("IC_test","IC E vs dE in gate",600,0,4800,600,0,4800);
- 
+  TH2F *hICcorrected = new TH2F("ICcorrected","IC corrected with Andrew's method",600,0,4800,600,0,4800);
+  TH2F *hICCor_EdE_tdc0 = new TH2F("ICCor_EdE_tdc0","IC E vs dE, gated on tdc0 between 560 and 630",600,0,4800,600,0,4800);
+
   TH2F *huQEvTh = new TH2F("uQEvTh","E v Rnum for uQQQ",32,0,32,5000,0,10000);
   TH2F *huQEvBStrip = new TH2F("uQEvBStrip","E v Back Strip for uQQQ",16,0,16,5000,0,10000);
 
@@ -264,35 +337,35 @@ void Sortcode::SortData(Int_t RunNum){
   TH1F *htdc3 = new TH1F("tdc3","RF -doesn't work for all runs",400,0,4000);
   TH1F *htdc4 = new TH1F("tdc4","Si stop delayed",400,0,4000);
 
-  TH2F *hExEgam = new TH2F("ExEgam","Ex vs Edop all Si, ungated",1000,0,10000,200,0,20);
-  TH2F *hExEgam1 = new TH2F("ExEgam1","Ex vs Edop all Si, ungated, SiMult==1",2000,0,10000,200,0,20);
-  TH2F *hExEgam_IC = new TH2F("ExEgam_IC","Ex vs Edop all Si, IC gate",1000,0,10000,200,0,20);
-  TH2F *hExEgam_ICTDC = new TH2F("ExEgam_ICTDC","Ex vs Edop all Si, IC,TDC gate",1000,0,10000,200,0,20);
-  TH2F *hExTh = new TH2F("hExTh","Ex vs Theta, all Silicon",180,0,180,200,0,20);
+  TH2F *hExEgam = new TH2F("ExEgam","Ex vs Edop all Si, ungated",5000,0,10000,140,0,14);
+  TH2F *hExEgam1 = new TH2F("ExEgam1","Ex vs Edop all Si, ungated, SiMult==1",2000,0,10000,140,0,14);
+  TH2F *hExEgam_IC = new TH2F("ExEgam_IC","Ex vs Edop all Si, IC gate",5000,0,10000,140,0,14);
+  TH2F *hExEgam_ICTDC = new TH2F("ExEgam_ICTDC","Ex vs Edop all Si, IC,TDC gate",5000,0,10000,140,0,14);
+  TH2F *hExTh = new TH2F("hExTh","Ex vs Theta, all Silicon",180,0,180,140,0,14);
 
-  TH2F *hExEgamuQ = new TH2F("ExEgamuQ","Ex vs Edop uQQQ, ungated",1000,0,10000,200,0,20);
-  TH2F *hExEgamuQ_IC = new TH2F("ExEgamuQ_IC","Ex vs Edop uQQQ, IC gate",1000,0,10000,200,0,20);
-  TH2F *hExEgamuQ_ICTDC = new TH2F("ExEgamuQ_ICTDC","Ex vs Edop uQQQ, IC,TDC gate",1000,0,10000,200,0,20);
-  TH2F *hExThuQ = new TH2F("ExThuQ","Ex v Th, uQQQ, IC&TDC",180,0,180,200,0,20);
+  TH2F *hExEgamuQ = new TH2F("ExEgamuQ","Ex vs Edop uQQQ, ungated",5000,0,10000,140,0,14);
+  TH2F *hExEgamuQ_IC = new TH2F("ExEgamuQ_IC","Ex vs Edop uQQQ, IC gate",5000,0,10000,140,0,14);
+  TH2F *hExEgamuQ_ICTDC = new TH2F("ExEgamuQ_ICTDC","Ex vs Edop uQQQ, IC,TDC gate",5000,0,10000,140,0,14);
+  TH2F *hExThuQ = new TH2F("ExThuQ","Ex v Th, uQQQ, IC&TDC",180,0,180,140,0,14);
   
-  TH2F *hEBE_ExEgamQ = new TH2F("EBE_ExEgamQ","Ex vs Edop(EBE) uQQQ, ungated",1000,0,10000,200,0,20);
-  TH2F *hEBE_ExEgamQ_IC = new TH2F("EBE_ExEgamQ_IC","Ex vs Edop(EBE) uQQQ, IC gate",1000,0,10000,200,0,20);
-  TH2F *hEBE_ExEgamQ_ICTDC = new TH2F("EBE_ExEgamQ_ICTDC","Ex vs Edop (EBE) uQQQ, IC,TDC gate",1000,0,10000,200,0,20);
+  TH2F *hEBE_ExEgamQ = new TH2F("EBE_ExEgamQ","Ex vs Edop(EBE) uQQQ, ungated",5000,0,10000,140,0,14);
+  TH2F *hEBE_ExEgamQ_IC = new TH2F("EBE_ExEgamQ_IC","Ex vs Edop(EBE) uQQQ, IC gate",5000,0,10000,140,0,14);
+  TH2F *hEBE_ExEgamQ_ICTDC = new TH2F("EBE_ExEgamQ_ICTDC","Ex vs Edop (EBE) uQQQ, IC,TDC gate",5000,0,10000,140,0,14);
 
-  TH2F *hExEgamdQ = new TH2F("ExEgamdQ","Ex vs Edop dQQQ, ungated",1000,0,10000,200,0,20);
-  TH2F *hExEgamdQ_IC = new TH2F("ExEgamdQ_IC","Ex vs Edop dQQQ, IC gate",1000,0,10000,200,0,20);
-  TH2F *hExEgamdQ_ICTDC = new TH2F("ExEgamdQ_ICTDC","Ex vs Edop dQQQ, IC,TDC gate",1000,0,10000,200,0,20);
-  TH2F *hExThdQ = new TH2F("ExThdQ","Ex v Th, dQQQ, IC&TDC",180,0,180,200,0,20);
+  TH2F *hExEgamdQ = new TH2F("ExEgamdQ","Ex vs Edop dQQQ, ungated",5000,0,10000,140,0,14);
+  TH2F *hExEgamdQ_IC = new TH2F("ExEgamdQ_IC","Ex vs Edop dQQQ, IC gate",5000,0,10000,140,0,14);
+  TH2F *hExEgamdQ_ICTDC = new TH2F("ExEgamdQ_ICTDC","Ex vs Edop dQQQ, IC,TDC gate",5000,0,10000,140,0,14);
+  TH2F *hExThdQ = new TH2F("ExThdQ","Ex v Th, dQQQ, IC&TDC",180,0,180,140,0,14);
 
-  TH2F *hExEgamuSX = new TH2F("ExEgamuSX","Ex vs Edop uSX3, ungated",1000,0,10000,200,0,20);
-  TH2F *hExEgamuSX_IC = new TH2F("ExEgamuSX_IC","Ex vs Edop uSX3, IC gate",1000,0,10000,200,0,20);
-  TH2F *hExEgamuSX_ICTDC = new TH2F("ExEgamuSX_ICTDC","Ex vs Edop uSX3, IC,TDC gate",1000,0,10000,200,0,20);
-  TH2F *hExThuSX = new TH2F("ExThuSX","Ex v Th, uSX3, IC&TDC",180,0,180,200,0,20);
+  TH2F *hExEgamuSX = new TH2F("ExEgamuSX","Ex vs Edop uSX3, ungated",5000,0,10000,140,0,14);
+  TH2F *hExEgamuSX_IC = new TH2F("ExEgamuSX_IC","Ex vs Edop uSX3, IC gate",5000,0,10000,140,0,14);
+  TH2F *hExEgamuSX_ICTDC = new TH2F("ExEgamuSX_ICTDC","Ex vs Edop uSX3, IC,TDC gate",5000,0,10000,140,0,14);
+  TH2F *hExThuSX = new TH2F("ExThuSX","Ex v Th, uSX3, IC&TDC",180,0,180,140,0,14);
 
-  TH2F *hExEgamdSX = new TH2F("ExEgamdSX","Ex vs Edop dSX3, ungated",1000,0,10000,200,0,20);
-  TH2F *hExEgamdSX_IC = new TH2F("ExEgamdSX_IC","Ex vs Edop dSX3, IC gate",1000,0,10000,200,0,20);
-  TH2F *hExEgamdSX_ICTDC = new TH2F("ExEgamdSX_ICTDC","Ex vs Edop dSX3, IC,TDC gate",1000,0,10000,200,0,20);
-  TH2F *hExThdSX = new TH2F("ExThdSX","Ex v Th, dSX3, IC&TDC",180,0,180,200,0,20);
+  TH2F *hExEgamdSX = new TH2F("ExEgamdSX","Ex vs Edop dSX3, ungated",5000,0,10000,140,0,14);
+  TH2F *hExEgamdSX_IC = new TH2F("ExEgamdSX_IC","Ex vs Edop dSX3, IC gate",5000,0,10000,140,0,14);
+  TH2F *hExEgamdSX_ICTDC = new TH2F("ExEgamdSX_ICTDC","Ex vs Edop dSX3, IC,TDC gate",5000,0,10000,140,0,14);
+  TH2F *hExThdSX = new TH2F("ExThdSX","Ex v Th, dSX3, IC&TDC",180,0,180,140,0,14);
 
   TH2F *hTdc0Tdc4 = new TH2F("TDC0TDC4","tdc0 v tdc4, Si gated",1100,-400,4000,1100,-400,4000);
 
@@ -301,10 +374,15 @@ void Sortcode::SortData(Int_t RunNum){
   TH2F *hFB_dSX = new TH2F("FB_dSX","Front vs back, downstream SX3",512,0,8192,512,0,8192);
 
   TH2F *hT0_Ex = new TH2F("T0_Ex","TDC0 vs Ex in uQQQs and uSX3s",500,-2,18,500,0,4000);
+  TH1F *htdc0_dp = new TH1F("tdc0_dp","IC stop delayed, with gate on 134Te(d,p)",400,0,4000);
 
-  Double_t E1 = T1+m1; //30P total energy
+// ------------------------------------------------------------------------------------------- 
+  Double_t E1 = T1+m1; //134Te total energy
   Double_t Etot = E1+m2;  //total energy in the lab frame???
   Double_t Etotcm = sqrt((m1*m1)+(m2*m2)+2.*E1*m2);  // total energy in the CM frame
+
+  // cout << "E te = " << E1 << ", E1_i " << E1_i << ", Etot " << Etot << ", Etot_i " << Etot_i << endl;
+  // cout << "Etotcm " << Etotcm << ", Etotcm_i " <<Etotcm_i << endl; 
 
   TGraph *kinematics = MakeCatKinematics(0);
   kinematics->SetName("Kinematics_GS");
@@ -314,28 +392,32 @@ void Sortcode::SortData(Int_t RunNum){
   kinematics_2->SetName("Kinematics_2MeV");
 
   Double_t p1 = sqrt(T1*T1+(2.0*m1*T1));
-  if(iverb) cout << Etotcm << "\t" << p1 << endl;
-
-  Double_t r = 100.; // distance from target to inner barrel 
+  //  cout << "p1 = " << p1 << ", p1_i = " << p1_i << endl;
+  Double_t r = 100.; // mm, distance from target to inner barrel 
    
   SiMult = uSX3mult = dSX3mult = 0;
   uQmult = dQmult = 0;
-  Int_t up = 0;
  
   // ------------------------------------------------------------------------------------------- 
+  // LOOP OVER ALL EVENTS
   for(Long64_t jentry=0;jentry<nentries;jentry++){
-  
+   
     AnalysisTree->GetEntry(jentry);
    
     // initialise to zero for every event
     for(j=0;j<MAXSILICON;j++){
-      uSX3Pos[j] = uSX3Theta[j] = uSX3Energy[j] = uSX3Ex[j] = uSX3fStrip[j] = uSX3bStrip[j] = 0;
-      dSX3Pos[j] = dSX3Theta[j] = dSX3Energy[j] = dSX3Ex[j] = dSX3fStrip[j] = dSX3bStrip[j] = 0;
-      uQTheta[j] = uQEnergy[j] = uQEx[j] = uQfStrip[j] = uQbStrip[j] = BackStrip[j] = 0;
-      dQTheta[j] = dQEnergy[j] = dQEx[j] = dQfStrip[j] = dQbStrip[j] = 0;
-      SiTheta[j] = SiEnergy[j] = Ex[j] = 0;
-      uQE3[j] = uQp3[j] = dQE3[j] = dQp3[j] = 0;
-      uSX3E3[j] = uSX3p3[j] = dSX3E3[j] = dSX3p3[j] = 0; 
+      uSX3Pos[j] = uSX3Theta[j] = uSX3Energy[j] = uSX3Ex[j] = 0.;
+      uSX3fStrip[j] = uSX3bStrip[j] = 0;
+      dSX3Pos[j] = dSX3Theta[j] = dSX3Energy[j] = dSX3Ex[j] = 0.;
+      dSX3fStrip[j] = dSX3bStrip[j] = 0;
+      uQTheta[j] = uQEnergy[j] = uQEx[j] = 0.;
+      uQfStrip[j] = uQbStrip[j] = BackStrip[j] = 0;
+      dQTheta[j] = dQEnergy[j] = dQEx[j] = 0.;
+      dQfStrip[j] = dQbStrip[j] = 0;
+      SiTheta[j] = SiEnergy[j] = Ex[j] = 0.;
+      uQE3[j] = uQp3[j] = dQE3[j] = dQp3[j] = 0.;
+      uSX3E3[j] = uSX3p3[j] = dSX3E3[j] = dSX3p3[j] = 0.; 
+      UpEnergy[j] = UpTheta[j] = UpEx[j] = 0.;
     }
 
     for(j=0;j<MAXGRETINA;j++){
@@ -346,19 +428,35 @@ void Sortcode::SortData(Int_t RunNum){
     SiMult = uSX3mult = dSX3mult = 0;
     uQmult = dQmult = 0;
     crysMult = 0;
-   
+    UpMult = 0;
 
-    // ------------------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------------------------
     // if(iverb) cout << endl << "vector size check, entry " << jentry << endl;
-    //if(iverb) cout << "goddess size = " << goddess->si.size() << endl;
+    // if(iverb) cout << "goddess size = " << goddess->si.size() << endl;
     //the size of the vector changes with jentry... it's a multiplicity!!
  
 
     // Ionisation chamber
     // branches are not a member of detectorOUT, so it doesn't need to be looped!
-     
+
+    
+   
+    // derp derp derp
+    if (( goddess->tdc0 > 560.0 ) && ( goddess->tdc0 < 630.0 )) {
+      hICCor_EdE_tdc0->Fill(((goddess->icDE)*IC_gain[RunNum][0]),((goddess->icE)*IC_gain[RunNum][1]));
+    }
+
+
+    Double_t icEcorr = (goddess->icE)*IC_gain[RunNum][1];
+    Double_t icdEcorr = (goddess->icDE)*IC_gain[RunNum][0];
+    //cout << RunNum << endl << endl;
+    //   cout << "icEcorr = " << goddess->icE << " x " << IC_gain[RunNum][1] << " = " << icEcorr << endl;
+    //  cout << "icdEcorr = " << goddess->icDE << " x " << IC_gain[RunNum][0] << " = " << icdEcorr << endl;
+    //hICcorrected->Fill(((goddess->icE)*IC_gain[RunNum][1]),((goddess->icDE)*IC_gain[RunNum][0]));
+
+    hICcorrected->Fill(icEcorr,icdEcorr);
     hICxy->Fill(goddess->icX,goddess->icY);
-    hIC_EdE->Fill(goddess->icDE,goddess->icE);
+    hIC_EdE->Fill(goddess->icE,goddess->icDE);
     if(cutIC->IsInside(goddess->icE,goddess->icDE)){
       if(iverb) cout << "entry "<<jentry<<" has a hit in the IC" << endl;
       hIC_test->Fill(goddess->icDE,goddess->icE);
@@ -369,6 +467,7 @@ void Sortcode::SortData(Int_t RunNum){
     htdc2->Fill(goddess->tdc2);
     htdc3->Fill(goddess->tdc3);
     htdc4->Fill(goddess->tdc4);
+ // ------------------------------------------------------------------------------------------------
 
     // GODDESS Stuff
     Double_t xxxAR = 0.0;
@@ -416,8 +515,10 @@ void Sortcode::SortData(Int_t RunNum){
       if(goddess->siType.at(i) == "SuperX3" && det.upstream){ // UPSTREAM SX3
 
 	uSX3Energy[uSX3mult] = (det.nECal*uSX3bgain[uSX3][det.nStrip])+uSX3boffset[uSX3][det.nStrip];
+
+
 	
-	// for cross talk effects, gain[det][front/p][back/n]
+	// for cross talk effects, gain[det][front/p][back/n] << still not included, as we don't have a calibration for all detectors yet!
 	// uSX3Energy[uSX3mult] = (det.nECal*uSX3bgain[uSX3][det.pStrip][det.nStrip])+uSX3boffset[uSX3][det.pStrip][det.nStrip];
 	//cout << "uSX3E[" << uSX3 << "]["<<det.pStrip<<"]["<<det.nStrip<<"] = " << det.nECal <<" x " << uSX3bgain[uSX3][det.pStrip][det.nStrip];
 	//cout << " + " << uSX3boffset[uSX3][det.pStrip][det.nStrip] << " = " <<uSX3Energy[uSX3mult] << endl; 
@@ -425,41 +526,57 @@ void Sortcode::SortData(Int_t RunNum){
         uSX3fStrip[uSX3mult] = det.pStrip;
         uSX3bStrip[uSX3mult] = det.nStrip;
 	if(iverb) cout << "F strip = " <<  uSX3fStrip[uSX3mult] << ", back " <<  uSX3bStrip[uSX3mult] << endl;
-        uSX3Pos[uSX3mult] = ((((det.eFarCal-det.eNearCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)+37.5; // Henderswan
-	huFudge->Fill((((det.eFarCal-det.eNearCal))/(det.eNearCal+det.eFarCal))); // Henderswan
-	// uSX3Pos[uSX3mult] = (((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip])*37.5)+37.5;
-	// uSX3Pos[uSX3mult] = (((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip])*37.5)+37.5;
-	hpos->Fill(uSX3Pos[uSX3mult]);
-	//cout << "uSX3Pos["<<uSX3mult<<"] = " << ((((det.eFarCal-det.eNearCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)+37.5 << " or " << uSX3Pos[uSX3mult] << endl; 
-	//cout << "uSX3Pos " << ((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip]) << endl;
-        uSX3Theta[uSX3mult] = (TMath::ATan(uSX3Pos[uSX3mult]/r) + PI/2.)*(180./PI);
+
+	// uSX3Pos[uSX3mult] = ((((det.eFarCal-det.eNearCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)+37.5; // Original, 'fudged'
+	double factor = (det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)*1.8; // 04022019 ar
+	uSX3Pos[uSX3mult] = ((((factor-uSX3L[uSX3][det.pStrip])/(uSX3R[uSX3][det.pStrip]-uSX3L[uSX3][det.pStrip]))-0.5)*37.5)+37.5;
+      	
+        uSX3Theta[uSX3mult] = (TMath::ATan(uSX3Pos[uSX3mult]/r) + PI/2.)*(180./PI);	
         uSX3E3[uSX3mult] = (uSX3Energy[uSX3mult]/1000) + m3;
         uSX3p3[uSX3mult] = TMath::Sqrt(TMath::Power(uSX3Energy[uSX3mult]/1000.0,2.0) + 2.0*m3*uSX3Energy[uSX3mult]/1000.0);
-        uSX3Ex[uSX3mult] = (TMath::Sqrt((Etotcm*Etotcm + m3*m3)-2*(uSX3E3[uSX3mult]*Etot - p1*uSX3p3[uSX3mult]*TMath::Cos(uSX3Theta[uSX3mult]*PI/180.))) - m4);
 
+        uSX3Ex[uSX3mult] = (TMath::Sqrt((Etotcm*Etotcm + m3*m3)-2*(uSX3E3[uSX3mult]*Etot - p1*uSX3p3[uSX3mult]*TMath::Cos(uSX3Theta[uSX3mult]*PI/180.))) - m4);
+	 
         hT0_Ex->Fill(uSX3Ex[uSX3mult],goddess->tdc0);
 
         hFB_uSX->Fill(uSX3Energy[uSX3mult],(det.eNearCal+det.eFarCal));
         if(uSX3Energy[uSX3mult] > 50){
          hEx_upstream->Fill(uSX3Ex[uSX3mult]);
-          if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>400 && (goddess->tdc0)<1250)){
+      
+          if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>500 && (goddess->tdc0)<900)){
             huSXEx->Fill(uSX3Ex[uSX3mult]);
               hEx_upstream_ICTDC->Fill(uSX3Ex[uSX3mult]);
               }
-          if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>1300 && (goddess->tdc0)<2150))
+          if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>2000 && (goddess->tdc0)<2400))
             huSXEx_bg->Fill(uSX3Ex[uSX3mult]);
           // add these things to an overall Si array...
           SiEnergy[SiMult] = uSX3Energy[uSX3mult];
+	  UpEnergy[UpMult] = uSX3Energy[uSX3mult];
           // pos[SiMult] = uSX3Pos[uSX3mult];
           SiTheta[SiMult] = uSX3Theta[uSX3mult];
+	  UpTheta[UpMult] = uSX3Theta[uSX3mult];
           Ex[SiMult] = uSX3Ex[uSX3mult];
+	  UpEx[UpMult] = uSX3Ex[uSX3mult];
 
           hSiEvTh->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
           if(cutIC->IsInside(goddess->icE,goddess->icDE)){
             hSiEvTh_IC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
-            if((goddess->tdc0)>400 && (goddess->tdc0)<1250)
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
               hSiEvTh_ICTDC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
           }
+	   if(cut_whole->IsInside(icEcorr,icdEcorr)){
+            hSiEvTh_wlIC->Fill(uSX3Theta[uSX3mult],uSX3Energy[uSX3mult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_wlICTDC->Fill(uSX3Theta[uSX3mult],uSX3Energy[uSX3mult]);
+          }
+	   if(icEcorr>100 && icdEcorr>100){
+            hSiEvTh_WIC->Fill(uSX3Theta[uSX3mult],uSX3Energy[uSX3mult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_WICTDC->Fill(uSX3Theta[uSX3mult],uSX3Energy[uSX3mult]);
+          }
+
+
+	   if(cut_tedp->IsInside(uSX3Theta[uSX3mult],uSX3Energy[uSX3mult])) htdc0_dp->Fill(goddess->tdc0);
 
           hEx->Fill(Ex[SiMult]);
           htheta->Fill(SiTheta[SiMult]);
@@ -467,28 +584,23 @@ void Sortcode::SortData(Int_t RunNum){
           if(iverb) cout << ", uSX3Th["<<uSX3mult<<"] = " << uSX3Theta[uSX3mult];
           uSX3mult++;
           SiMult++;
-	  up++;
+	  UpMult++;
+	  if(iverbGam) cout << "jentry " << jentry << ": uSX3mult = " << uSX3mult << ", SiMult = " << SiMult << " up = " << UpMult << endl;
         }	
       }
 
       //*************************************************************
 
       else if(goddess->siType.at(i) == "SuperX3" && !(det.upstream)){ // DOWNSTREAM SX3
-        //dSX3Energy[dSX3mult] = det.nECal; //  energy from backs
+        
         dSX3Energy[dSX3mult] = (det.nECal*dSX3bgain[dSX3][det.nStrip])+dSX3boffset[dSX3][det.nStrip];
-        //  eNear = (det.eNearCal * gain) + offset;
-        // eFar = (det.eFarCal * gain) + offset;
         dSX3fStrip[dSX3mult] = det.pStrip;
         dSX3bStrip[dSX3mult] = det.nStrip;
-        dSX3Pos[dSX3mult] = ((((det.eNearCal-det.eFarCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)-37.5;
-	hdFudge->Fill(((det.eNearCal-det.eFarCal))/(det.eNearCal+det.eFarCal));
-	//dSX3Pos[dSX3mult] = (((det.eNearCal-det.eFarCal)/(det.eFarCal+det.eNearCal)+dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip])*37.5)-37.5;
+	// dSX3Pos[dSX3mult] = ((((det.eNearCal-det.eFarCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)-37.5; // original, 'fudged'
+       	double dFactor = (det.eNearCal-det.eFarCal)/(det.eFarCal+det.eNearCal)*1.8;
+	dSX3Pos[dSX3mult] = ((((dFactor-dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip]))-0.5)*37.5)-37.5;
+	hpos->Fill(((dFactor-dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip])-1.0)+0.5,det.pStrip+(4*dSX3));
 
-	//	cout << "dSX3Pos " << ((det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal)-dSX3L[dSX3][det.pStrip])/(dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip]) << endl;
-	//	cout << "dSX3Pos["<<dSX3mult<<"] = " << ((((det.eNearCal-det.eFarCal)*1.8)/(det.eNearCal+det.eFarCal))*37.5)-37.5 << " or " << dSX3Pos[dSX3mult] << endl; 
-	//	cout << "left["<<dSX3<<"]["<<det.pStrip<<"] = " << dSX3L[dSX3][det.pStrip] << ", right["<<dSX3<<"]["<<det.pStrip<<"] = " << dSX3R[dSX3][det.pStrip] << endl;
-	//	cout << "dSX3Pos = (" << (det.eFarCal-det.eNearCal)/(det.eFarCal+det.eNearCal) << ") - " << dSX3L[dSX3][det.pStrip] << "/" << (dSX3R[dSX3][det.pStrip]-dSX3L[dSX3][det.pStrip]) << endl << endl;
-	hpos->Fill(dSX3Pos[dSX3mult]);
         dSX3Theta[dSX3mult] = (TMath::ATan(dSX3Pos[dSX3mult]/r) + (PI)/2.)*(180./(PI));
         dSX3E3[dSX3mult] = (dSX3Energy[dSX3mult]/1000) + m3; 
         dSX3p3[dSX3mult] = TMath::Sqrt(TMath::Power(dSX3Energy[dSX3mult]/1000.0,2.0) + 2.0*m3*dSX3Energy[dSX3mult]/1000.0);
@@ -496,17 +608,26 @@ void Sortcode::SortData(Int_t RunNum){
 
         hFB_dSX->Fill(dSX3Energy[dSX3mult],(det.eNearCal+det.eFarCal));
         if(dSX3Energy[dSX3mult] > 50){
-          // add these things to an overall Si array... 
           SiEnergy[SiMult] = dSX3Energy[dSX3mult];
-          // pos[SiMult] = dSX3Pos[dSX3mult];
           SiTheta[SiMult] = dSX3Theta[dSX3mult];
           Ex[SiMult] = dSX3Ex[dSX3mult];
 
           hSiEvTh->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
           if(cutIC->IsInside(goddess->icE,goddess->icDE)){
             hSiEvTh_IC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
-            if((goddess->tdc0)>400 && (goddess->tdc0)<1250)
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
               hSiEvTh_ICTDC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
+          }
+
+	  if(cut_whole->IsInside(icEcorr,icdEcorr)){
+            hSiEvTh_wlIC->Fill(dSX3Theta[dSX3mult],dSX3Energy[dSX3mult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_wlICTDC->Fill(dSX3Theta[dSX3mult],dSX3Energy[dSX3mult]);
+          }
+	   if(icEcorr>100 && icdEcorr>100){
+            hSiEvTh_WIC->Fill(dSX3Theta[dSX3mult],dSX3Energy[dSX3mult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_WICTDC->Fill(dSX3Theta[dSX3mult],dSX3Energy[dSX3mult]);
           }
 
           hEx->Fill(Ex[SiMult]);
@@ -516,12 +637,12 @@ void Sortcode::SortData(Int_t RunNum){
           if(iverb) cout << ", dSX3Th["<<dSX3mult<<"] = " << dSX3Theta[dSX3mult];
           dSX3mult++;
           SiMult++;
+	  // if(iverbGam) cout << "jentry " << jentry << ": dSX3mult = " << dSX3mult << ", SiMult = " << SiMult << " [up = " << up << "] " << endl;
         }
       }
       //*************************************************************
 
       else if(goddess->siType.at(i) == "QQQ5" && det.upstream){ // UPSTREAM QQQ
-        //uQEnergy[uQmult] = det.nECal;
         uQEnergy[uQmult] = (det.nECal*uQbgain[uQQQ][det.nStrip])+uQboffset[uQQQ][det.nStrip];
         uQbStrip[uQmult] = det.nStrip;
         BackStrip[uQmult] = det.nStrip + (uQQQ*4); // back strips numbered from 1 to 16, from uQQQ 0 to 3.
@@ -537,41 +658,56 @@ void Sortcode::SortData(Int_t RunNum){
         if(iverb) cout << ", p3[uQmult] = " << uQp3[uQmult];
 
         uQEx[uQmult] = (TMath::Sqrt((Etotcm*Etotcm + m3*m3)-2*(uQE3[uQmult]*Etot - p1*uQp3[uQmult]*TMath::Cos(uQTheta[uQmult]*PI/180.))) - m4);
+
          hEx_upstream->Fill(uQEx[uQmult]);
-        if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>400 && (goddess->tdc0)<1250)){
+
+        if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>500 && (goddess->tdc0)<900)){
           huQEx->Fill(uQEx[uQmult]);
            hEx_upstream_ICTDC->Fill(uQEx[uQmult]);
            }
-        if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>1300 && (goddess->tdc0)<2150))
+        if(cutIC->IsInside(goddess->icE,goddess->icDE) && ((goddess->tdc0)>2000 && (goddess->tdc0)<2400))
           huQEx_bg->Fill(uQEx[uQmult]);
-          
-        if(iverb) cout << ", uQEx["<<uQmult<<"] = " << uQEx[uQmult] << endl;
 
         hT0_Ex->Fill(uQEx[uQmult],goddess->tdc0);
         hFB_uQ->Fill(uQEnergy[uQmult],det.pECal);
-        if(uQEnergy[uQmult] > 50){
+        if(uQEnergy[uQmult] > 50){ 
           // add these things to an overal Si array
                 
           SiEnergy[SiMult] = uQEnergy[uQmult];
           SiTheta[SiMult] = (uQQQang[det.pStrip]);
           Ex[SiMult] = uQEx[uQmult];
+	  UpEnergy[UpMult] = uQEnergy[uQmult];
+          UpTheta[UpMult] = (uQQQang[det.pStrip]);
+          UpEx[UpMult] = uQEx[uQmult];
 
           hSiEvTh->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
           if(cutIC->IsInside(goddess->icE,goddess->icDE)){
             hSiEvTh_IC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
-            if((goddess->tdc0)>400 && (goddess->tdc0)<1250)
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
               hSiEvTh_ICTDC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
           }
-
+	  if(cut_whole->IsInside(icEcorr,icdEcorr)){
+            hSiEvTh_wlIC->Fill(uQTheta[uQmult],uQEnergy[uQmult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_wlICTDC->Fill(uQTheta[uQmult],uQEnergy[uQmult]);
+          }
+	   if(icEcorr>100 && icdEcorr>100){
+            hSiEvTh_WIC->Fill(uQTheta[uQmult],uQEnergy[uQmult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_WICTDC->Fill(uQTheta[uQmult],uQEnergy[uQmult]);
+          }
           hEx->Fill(Ex[SiMult]);
           htheta->Fill(SiTheta[SiMult]);
 
+	  if(cut_tedp->IsInside(uQTheta[uQmult],uQEnergy[uQmult])) htdc0_dp->Fill(goddess->tdc0);
+	  
           if(iverb) cout << " uQE["<<uQmult<<"] = " << uQEnergy[uQmult];
           if(iverb) cout << ", uQTh["<<uQmult<<"] = " << uQTheta[uQmult];
 
           uQmult++;
           SiMult++;
-	  up++;
+	  UpMult++;
+	  if(iverbGam) cout << "jentry " << jentry << ": uQmult = " << uQmult << ", SiMult = " << SiMult << " up = " << UpMult << endl;
         }
       }
 
@@ -596,8 +732,18 @@ void Sortcode::SortData(Int_t RunNum){
           hSiEvTh->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
           if(cutIC->IsInside(goddess->icE,goddess->icDE)){
             hSiEvTh_IC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
-            if((goddess->tdc0)>400 && (goddess->tdc0)<1250)
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
               hSiEvTh_ICTDC->Fill(SiTheta[SiMult],SiEnergy[SiMult]);
+          }
+	  if(cut_whole->IsInside(icEcorr,icdEcorr)){
+            hSiEvTh_wlIC->Fill(dQTheta[dQmult],dQEnergy[dQmult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_wlICTDC->Fill(dQTheta[dQmult],dQEnergy[dQmult]);
+          }
+	   if(icEcorr>100 && icdEcorr>100){
+            hSiEvTh_WIC->Fill(dQTheta[dQmult],dQEnergy[dQmult]);
+            if((goddess->tdc0)>500 && (goddess->tdc0)<900)
+              hSiEvTh_WICTDC->Fill(dQTheta[dQmult],dQEnergy[dQmult]);
           }
 
           hEx->Fill(Ex[SiMult]);
@@ -606,6 +752,7 @@ void Sortcode::SortData(Int_t RunNum){
           if(iverb) cout << ", dQTh["<<dQmult<<"] = " << dQTheta[dQmult];
           dQmult++;
           SiMult++;
+	  // if(iverbGam) cout << "jentry " << jentry << ": dQmult = " << dQmult << ", SiMult = " << SiMult << " [up = " << up << "]" << endl;
         }
       }
  
@@ -623,8 +770,11 @@ void Sortcode::SortData(Int_t RunNum){
     hTdc0Tdc4->Fill(goddess->tdc0,goddess->tdc4);
 
 
-    // ---------------------------------------------------------------------------------------------
-    // GRETINA Stuff
+      /* *********************************************************** */
+      /* ********************** GRETINA **************************** */ 
+      /*    initial loop sets variables and iterates a multiplicity  */
+      /* *********************************************************** */
+
     for(size_t j=0;j<gretina->xtals.size();j++){
       g2CrystalEvent g2 = gretina->xtals.at(j); 
       if(g2.cc < quadCut[g2.quadNum] && g2.cc > 0.){ // cut out high lying detector crap
@@ -633,15 +783,22 @@ void Sortcode::SortData(Int_t RunNum){
         zlab[crysMult] = g2.maxIntPtXYZLab().Z();
         gamE[crysMult] = g2.cc;
         edop[crysMult] = g2.edop;
+	edop_maxInt[crysMult] = g2.edop_maxInt;
         edopSeg[crysMult] = g2.edopSeg;
         edopXtal[crysMult] = g2.edopXtal;
         quadNum[crysMult] = g2.quadNum;
         hGamTdc2->Fill(g2.edop,goddess->tdc2);
         t0[crysMult] = g2.t0;
-        if(iverb) cout << jentry << ": E["<<crysMult<<"] = " << gamE[crysMult] << ", edp[" << crysMult << "] = " << edop[crysMult] << endl;
+        if(iverbGam) cout << jentry << ": E["<<crysMult<<"] = " << gamE[crysMult] << ", edp[" << crysMult << "] = " << edop[crysMult] << endl;
         crysMult++;
       }
     }
+
+
+    /* ****************************************************** */
+    /* ************* Filling histograms ********************* */
+    /* ****************************************************** */
+    // gamma singles only - no silicon
 
     for(k=0;k<crysMult;k++){
       //These are NOT event by event corrected
@@ -649,57 +806,74 @@ void Sortcode::SortData(Int_t RunNum){
       hedop->Fill(edop[k]);
       hedopSeg->Fill(edopSeg[k]);
       hedopXtal->Fill(edopXtal[k]);
-      
-      hDirk->Fill(t0[k],edop[k]);
+      hedop_maxInt->Fill(edop_maxInt[k]);
+    }
 
-      if((goddess->icE)>200){
+    if(dSX3mult>0){
+       for(k=0;k<crysMult;k++){
+	  hedop_dSX3->Fill(edop[k]);
+       }}
+
+
+    /*  if((goddess->icE)>200){
         for(n=0;n<uQmult;n++){
           if(uQEnergy[n]>3000){
-            hSteve->Fill(edop[k]);
-            // AR
-            // subtract from quadNum[1] to fix the indexing
-            hCryI[quadNum[k]-1]->Fill(gamE[k]);
-          }
-        }
-      }
-       
-	for(s=0;s<SiMult;s++){
-	  if(cutIC->IsInside(goddess->icE,goddess->icDE)){
-	  if(SiEnergy[s]>1500){
-	  if(cutdirk->IsInside(t0[k],edop[k])){
-		hedop_ICdirk->Fill(edop[k]);
-	  }else if(cutundirk->IsInside(t0[k],edop[k])){
-		hedop_ICbkdirk->Fill(edop[k]);
-	      }
-	    }
+           hSteve->Fill(edop[k]); 
+	   }}} */
+    for(n=0;n<uQmult;n++){
+      if(goddess->icE>200){
+	if(uQEnergy[n]>2000){
+	  for(k=0;k<crysMult;k++){
+	    hSteve->Fill(edop[k]);
 	  }
-		}
-      
-	  
-
-      if(cutIC->IsInside(goddess->icE,goddess->icDE)){
-        if (iverb) cout << "entry " << jentry << " inside the fill loop" << endl;
+	  break;
+	}}}
+   
+    
+    if(cutIC->IsInside(goddess->icE,goddess->icDE)){
+      for(k=0;k<crysMult;k++){
+	hedopMI_IC->Fill(edop_maxInt[k]);
         hedop_IC->Fill(edop[k]);
-	 if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+	 if((goddess->tdc0)>500 && (goddess->tdc0)<900){ 
 	   hedop_ICTDC->Fill(edop[k]);
-	 } else if ((goddess->tdc0)>1300 && (goddess->tdc0)<2150){
-	   hedop_ICbkTDC->Fill(edop[k]);
-	 }
-        if (iverb) cout << "in QQQ mult = " << uQmult << endl << endl;
+	 } else if ((goddess->tdc0)>2000 && (goddess->tdc0)<2400){ 
+	   hedop_ICbkTDC->Fill(edop[k]);}
+      }
         for(m=0;m<uQmult;m++){
-	  // if(uQEnergy[m]>3000)
+	  if(uQEnergy[m]>3000){
+	    for(k=0;k<crysMult;k++){
             hedop_ICuQ->Fill(edop[k]);
         }
-        if(iverb) cout << "inside fill Si mult = " << SiMult << endl;
-        for(s=0;s<up;s++){
-          if(SiEnergy[s]>2000)
-            hedop_ICSi->Fill(edop[k]);
-        }
-      }
-    
-    } 
+	    break;
+	  }}}
 
-    // Filling Ex vs gamma ray energy spectra, for all silicon
+ 
+        for(s=0;s<UpMult;s++){
+          if(SiEnergy[s]>1000 && (cutIC->IsInside(goddess->icE,goddess->icDE))){
+	    for(k=0;k<crysMult;k++){
+	      hedop_ICSi->Fill(edop[k]);
+	    }}
+	    break;
+	  if(SiEnergy[s]>1000 &&(goddess->tdc0)>500 && (goddess->tdc0)<900){
+	    for(k=0;k<crysMult;k++){
+	    hedop_ICTDCSi->Fill(edop[k]);
+	    }}
+	  break;
+	 if (SiEnergy[s]>1000 && (goddess->tdc0)>2000 && (goddess->tdc0)<2400){
+	   for(k=0;k<crysMult;k++){
+	    hedop_ICTDCSiBk->Fill(edop[k]);
+	   }}
+	 break;
+	}
+  
+    
+
+
+    /* ***************************************************************************************************** */
+    /* ***************************************************************************************************** */
+    
+
+     // Filling Ex vs gamma ray energy spectra, for all silicon
     for(s=0;s<SiMult;s++){
       for(k=0;k<crysMult;k++){
         hExEgam->Fill(edop[k],Ex[s]);
@@ -708,9 +882,10 @@ void Sortcode::SortData(Int_t RunNum){
         if(cutIC->IsInside(goddess->icE,goddess->icDE)){
           hExEgam_IC->Fill(edop[k],Ex[s]); 
 
-          if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+          if((goddess->tdc0)>500 && (goddess->tdc0)<900){
             hExEgam_ICTDC->Fill(edop[k],Ex[s]);
             hExTh->Fill(SiTheta[s],Ex[s]);
+
           }
         }
       }
@@ -724,7 +899,7 @@ void Sortcode::SortData(Int_t RunNum){
         if(cutIC->IsInside(goddess->icE,goddess->icDE)){
           hExEgamuQ_IC->Fill(edop[k],uQEx[q]); 
 
-          if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+          if((goddess->tdc0)>500 && (goddess->tdc0)<900){
             hExEgamuQ_ICTDC->Fill(edop[k],uQEx[q]);
             hExThuQ->Fill(uQTheta[q],uQEx[q]);
           }
@@ -746,7 +921,7 @@ void Sortcode::SortData(Int_t RunNum){
         if(cutIC->IsInside(goddess->icE,goddess->icDE)){
           hEBE_ExEgamQ_IC->Fill(dopp_ebe,uQEx[q]); 
 
-          if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+          if((goddess->tdc0)>500 && (goddess->tdc0)<900){
             hEBE_ExEgamQ_ICTDC->Fill(dopp_ebe,uQEx[q]);
             hEBE_egam->Fill(dopp_ebe);
             hedopuQ_ICTDC->Fill(edop[k]);
@@ -764,7 +939,7 @@ void Sortcode::SortData(Int_t RunNum){
         if(cutIC->IsInside(goddess->icE,goddess->icDE)){
           hExEgamdQ_IC->Fill(edop[k],dQEx[q]); 
 
-          if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+          if((goddess->tdc0)>500 && (goddess->tdc0)<900){
             hExEgamdQ_ICTDC->Fill(edop[k],dQEx[q]);
             hExThdQ->Fill(dQTheta[q],dQEx[q]);
           }
@@ -781,7 +956,7 @@ void Sortcode::SortData(Int_t RunNum){
         if(cutIC->IsInside(goddess->icE,goddess->icDE)){
           hExEgamuSX_IC->Fill(edop[k],uSX3Ex[q]); 
 
-          if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+          if((goddess->tdc0)>500 && (goddess->tdc0)<900){
             hExEgamuSX_ICTDC->Fill(edop[k],uSX3Ex[q]);
             hExThuSX->Fill(uSX3Theta[q],uSX3Ex[q]);
           }
@@ -797,7 +972,7 @@ void Sortcode::SortData(Int_t RunNum){
         if(cutIC->IsInside(goddess->icE,goddess->icDE)){
           hExEgamdSX_IC->Fill(edop[k],dSX3Ex[q]); 
 
-          if((goddess->tdc0)>400 && (goddess->tdc0)<1250){
+          if((goddess->tdc0)>500 && (goddess->tdc0)<900){
             hExEgamdSX_ICTDC->Fill(edop[k],dSX3Ex[q]);
             hExThdSX->Fill(dSX3Theta[q],dSX3Ex[q]);
           }
@@ -805,7 +980,7 @@ void Sortcode::SortData(Int_t RunNum){
       }
     }
     
-
+ 
     // -----------------------------------------------------------------------------------------------
     if(jentry%100000 == 0) cout << setiosflags(ios::fixed) << "Entry " << jentry << " of " << nentries << ", " << 100 * jentry/nentries << "% complete" << "\r" << flush;   
   } // end of nentries
@@ -817,10 +992,11 @@ void Sortcode::SortData(Int_t RunNum){
 
   // ------------------------------------------------------------------------------------------------
   outfile->cd();
-
+  hgam->Write();
   hedop->Write();
   hedopSeg->Write();
-  hedopXtal->Write();	
+  hedopXtal->Write();
+  hedop_maxInt->Write();
   hedop_IC->Write();
   hedop_ICSi->Write();
   hedop_ICuQ->Write();
@@ -828,21 +1004,16 @@ void Sortcode::SortData(Int_t RunNum){
   htheta->Write();
   hSteve->Write();
   hpos->Write();
-
-  hedop_ICdirk->Write();
-  hedop_ICbkdirk->Write();
-  TH1F *hedop_dirksub = (TH1F*)hedop_ICdirk->Clone("hedop_dirksub");
-  hedop_dirksub->Add(hedop_ICbkdirk,-1);
-  hedop_dirksub->SetTitle("dopp.corr E gamma, IC gate, dirk gate - bkgd dirk gate");
-  for(int i=1;i<hedop_dirksub->GetNbinsX();i++){
-    hedop_dirksub->SetBinError(i,hedop_ICdirk->GetBinError(i)+hedop_ICbkdirk->GetBinError(i));
-  }
-  hedop_dirksub->Write();
-
-
+ 
+  hedop_dSX3->Write();
 
   hedop_ICTDC->Write();
   hedop_ICbkTDC->Write();  
+
+  hedop_ICTDCSi->Write();
+  hedop_ICTDCSiBk->Write();
+  
+
 
   TH1F *hedop_bksub = (TH1F*)hedop_ICTDC->Clone("hedop_bksub");
   hedop_bksub->Add(hedop_ICbkTDC,-1);
@@ -850,12 +1021,25 @@ void Sortcode::SortData(Int_t RunNum){
   for(int i=1;i<hedop_bksub->GetNbinsX();i++){
     hedop_bksub->SetBinError(i,hedop_ICTDC->GetBinError(i)+hedop_ICbkTDC->GetBinError(i));
   }
-  hedop_bksub->Write();
- 
 
+  hedop_bksub->Write();
+
+  TH1F *hedop_ar_bksub = (TH1F*)hedop_ICTDCSi->Clone("hedop_ar_bksub");
+  hedop_ar_bksub->Add(hedop_ICTDCSiBk,-1.0);
+  hedop_ar_bksub->SetTitle("Andrew's Time-random background subtracted doppler-corrected gamma");
+  
+  // don't want to include error bars for now
+  hedop_ar_bksub->Write();
+ 
+  hICcorrected->Write();
   hSiEvTh->Write();
   hSiEvTh_IC->Write();
   hSiEvTh_ICTDC->Write();
+  hSiEvTh_wlIC->Write();
+  hSiEvTh_wlICTDC->Write();
+  hSiEvTh_WIC->Write();
+  hSiEvTh_WICTDC->Write();
+
   kinematics->Write();
   kinematics_1->Write();
   kinematics_2->Write();
@@ -864,6 +1048,7 @@ void Sortcode::SortData(Int_t RunNum){
   huQEx_bg->Write();
    hEx_upstream_ICTDC->Write();
    hEx_upstream->Write();
+  
 
   TH1F *huQEx_bgsub = huQEx;
   huQEx_bgsub->Add(huQEx_bg,-1);
@@ -887,12 +1072,13 @@ void Sortcode::SortData(Int_t RunNum){
   hICxy->Write();
   hIC_EdE->Write();
   hIC_test->Write();
-
+  hICCor_EdE_tdc0->Write();
   huQEvTh->Write();
   huQEvBStrip->Write();
 
 
   htdc0->Write();
+  htdc0_dp->Write();
   htdc1->Write();
   htdc2->Write();
   htdc3->Write();
@@ -917,8 +1103,6 @@ void Sortcode::SortData(Int_t RunNum){
   hExEgamuSX_IC->Write();
   hExEgamuSX_ICTDC->Write();
   hExThuSX->Write();
-  huFudge->Write();
-  hdFudge->Write();
 
   hExEgamdSX->Write();
   hExEgamdSX_IC->Write();
@@ -932,16 +1116,17 @@ void Sortcode::SortData(Int_t RunNum){
   hT0_Ex->Write();
   hTdc0Tdc4->Write();
   hGamTdc2->Write();
-  
+  hedopMI_IC->Write();
   hFB_uQ->Write(); 
   hFB_uSX->Write();
   hFB_dSX->Write();
-  hDirk->Write();
+ 
   for (int ii = 0; ii < 11; ii++) {
     hCryI[ii]->Write();
   }
   fcuts->Close();
   dc->Close();
+  gc->Close();
   outfile->Close();
 
   }

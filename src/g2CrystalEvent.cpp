@@ -9,8 +9,9 @@ void g2CrystalEvent::Reset() {
   cc = 0.0; segSum = 0.0;
   ccCurrent = 0.0; ccPrior1 = 0.0; ccPrior2 = 0.0;
   deltaT1 = 0.0; deltaT2 = 0.0;
-  doppler = 0.0; dopplerSeg = 0.0; dopplerCrystal = 0.0;
+  doppler = 0.0; dopplerSeg = 0.0; dopplerCrystal = 0.0; dopplerSegOffset = 0.0; 
   edop = 0.0;
+  edop_maxInt = 0.0;
 }
 
 /**************************************************************/

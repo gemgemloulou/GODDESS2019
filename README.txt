@@ -11,12 +11,12 @@ g++ Sort.C -std=c++0x -I../include -L../../lib `root-config --cflags --libs` -lT
 
 To run, manually change the TFile name in the sortcode, OR run sorter.sh:
 
-./sorter.sh 096 200
+./sorter.sh 96 200
 
-will process runs 96 to 200. Note the preceding 0. This will dump histogram files in /global/data1b/gretina/1707_data1b/Histograms/hist###.root.
+will process runs 96 to 200. Note, you don't need the preceding 0. This will dump histogram files in /global/data1b/gretina/1707_data1b/Histograms/hist###.root.
 
 Then, add all the histograms you want together! Type this directly into the command line: 
-hadd output.root hist*.root
+hadd output.root hist*.root, or use hadd -f output.root hist*.root to overwrite output.root 
 
 for adding everything. 
 

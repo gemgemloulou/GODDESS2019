@@ -8,11 +8,10 @@ import numpy as np
 import os,random
 from ROOT import TFile,TCanvas,TH2D,TSpectrum
 
-
 #plt.style.use(['fivethirtyeight','paper538'])
 
 #HIST_BASE = '/Users/ratkiewicz1/Desktop/goddess_2019/134Te/hists'
-HIST_BASE = '/global/data1b/gretina/1484_data1b/Histograms/1Apr'
+HIST_BASE = '/global/data1b/gretina/1484_data1b/Histograms/8Apr_pareddown'
 
 def getAllHists(fName,flag='',exclude='',folder=''):
     fR = TFile.Open(fName,'READ')
@@ -43,6 +42,7 @@ def getAllHists(fName,flag='',exclude='',folder=''):
     # disassociate the histogram with fR.
 
     #fR.Close()
+
 
     return hList
 
@@ -151,10 +151,9 @@ for h in pX:
         hK = int((h.GetName()).replace('hist','').replace('_IC_EdE_px',''))
         r.append(hK)
         pDE.append(xpeak)
-    
 for h in pY:
     if 'bkgd' not in h.GetName():
-        h.SetAxisRange(10,1500,'X')
+        h.SetAxisRange(1000,1500,'X')
         nFound = s.Search(h,2,"goff",0.05)
         xpeak = s.GetPositionX()[0]    
         pE.append(xpeak)
@@ -169,7 +168,7 @@ ic_e_ref = 720.0
 c_pDE = [ic_de_ref/ic for ic in pDE]
 c_pE = [ic_e_ref/ic for ic in pE]
 
-with open('ic_cor.dat','w') as outFile:
+with open('ic_cor_tmp.dat','w') as outFile:
     outFile.write('#run_num\tdE_cor\tE_cor\n')
     outFile.write('# IC_dE ref: %.02f\n'%(ic_de_ref))
     outFile.write('# IC_E ref : %.02f\n'%(ic_e_ref))
@@ -207,20 +206,20 @@ sDE.SetXTitle('run (abs)')
 c1.SetLogz()
 c1.Modified()
 c1.Update()
-c1.SaveAs('IC_dE.png')
+c1.SaveAs('images/IC_dE.root')
 
 raw_input('press enter')
 
 
 sE.Draw('colz')
-sE.SetAxisRange(0,2000,'Y')
+sE.SetAxisRange(10,5000,'Y')
 sE.SetYTitle('IC E (abs)')
 sE.SetXTitle('run (abs)')
 
 c1.SetLogz()
 c1.Modified()
 c1.Update()
-c1.SaveAs('images/IC_E.png')
+c1.SaveAs('images/IC_E.root')
 
 raw_input('press enter')
 
@@ -232,18 +231,18 @@ c1.SetLogz()
 c1.Modified()
 c1.Update()
 
-c1.SaveAs('images/IC_dE_cor.png')
+c1.SaveAs('images/IC_dE_cor.root')
 raw_input('press enter')
 
 hSC_E.Draw('colz')
-hSC_E.SetAxisRange(0,2000,'Y')
+#hSC_E.SetAxisRange(0,2000,'Y')
 hSC_E.SetYTitle('IC E (abs)')
 hSC_E.SetXTitle('run (abs)')
 c1.SetLogz()
 c1.Modified()
 c1.Update()
 
-c1.SaveAs('images/IC_E_cor.png')
+c1.SaveAs('images/IC_E_cor.root')
 raw_input('press enter')
 
 
