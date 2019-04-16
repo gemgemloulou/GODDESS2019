@@ -328,8 +328,10 @@ void Sortcode::SortData(Int_t RunNum){
   TH2F *hICcorrected = new TH2F("ICcorrected","IC corrected with Andrew's method",600,0,4800,600,0,4800);
   TH2F *hICCor_EdE_tdc0 = new TH2F("ICCor_EdE_tdc0","IC E vs dE, gated on tdc0 between 560 and 630",600,0,4800,600,0,4800);
 
-  TH2F *huQEvTh = new TH2F("uQEvTh","E v Rnum for uQQQ",32,0,32,5000,0,10000);
+  TH2F *huQEvTh = new TH2F("uQEvTh","E v Ringnum for uQQQ",32,0,32,5000,0,10000);
   TH2F *huQEvBStrip = new TH2F("uQEvBStrip","E v Back Strip for uQQQ",16,0,16,5000,0,10000);
+
+  TH2F *hExvicE = new TH2F("ExvicE","Ex vs E in IC",600,0,4800,500,-10,40);
 
   TH1F *htdc0 = new TH1F("tdc0","IC stop delayed",400,0,4000);
   TH1F *htdc1 = new TH1F("tdc1","gamma stop tdc1",400,0,4000);
@@ -579,6 +581,7 @@ void Sortcode::SortData(Int_t RunNum){
 	   if(cut_tedp->IsInside(uSX3Theta[uSX3mult],uSX3Energy[uSX3mult])) htdc0_dp->Fill(goddess->tdc0);
 
           hEx->Fill(Ex[SiMult]);
+	 
           htheta->Fill(SiTheta[SiMult]);
           if(iverb) cout << "uSX3E["<<uSX3mult<<"] = " << uSX3Energy[uSX3mult] << ", but raw = " <<det.nECal << endl;
           if(iverb) cout << ", uSX3Th["<<uSX3mult<<"] = " << uSX3Theta[uSX3mult];
@@ -775,15 +778,22 @@ void Sortcode::SortData(Int_t RunNum){
       /*    initial loop sets variables and iterates a multiplicity  */
       /* *********************************************************** */
 
+    Float_t ar_beta = 0.1351202;
+    Float_t ar_gamma = 1.0/TMath::Sqrt(1.0-TMath::Power(ar_beta,2.0));
+    
+
     for(size_t j=0;j<gretina->xtals.size();j++){
       g2CrystalEvent g2 = gretina->xtals.at(j); 
       if(g2.cc < quadCut[g2.quadNum] && g2.cc > 0.){ // cut out high lying detector crap
         xlab[crysMult] = g2.maxIntPtXYZLab().X();
         ylab[crysMult] = g2.maxIntPtXYZLab().Y();
         zlab[crysMult] = g2.maxIntPtXYZLab().Z();
+                
+        edop_AR[crysMult] = g2.maxIntPtE()*ar_gamma*(1.0-ar_beta*g2.maxIntPtXYZLab().CosTheta());        
+                       
         gamE[crysMult] = g2.cc;
         edop[crysMult] = g2.edop;
-	edop_maxInt[crysMult] = g2.edop_maxInt;
+	    edop_maxInt[crysMult] = g2.edop_maxInt;
         edopSeg[crysMult] = g2.edopSeg;
         edopXtal[crysMult] = g2.edopXtal;
         quadNum[crysMult] = g2.quadNum;
@@ -806,7 +816,7 @@ void Sortcode::SortData(Int_t RunNum){
       hedop->Fill(edop[k]);
       hedopSeg->Fill(edopSeg[k]);
       hedopXtal->Fill(edopXtal[k]);
-      hedop_maxInt->Fill(edop_maxInt[k]);
+      hedop_maxInt->Fill(edop_AR[k]);
     }
 
     if(dSX3mult>0){
@@ -832,7 +842,7 @@ void Sortcode::SortData(Int_t RunNum){
     
     if(cutIC->IsInside(goddess->icE,goddess->icDE)){
       for(k=0;k<crysMult;k++){
-	hedopMI_IC->Fill(edop_maxInt[k]);
+	hedopMI_IC->Fill(edop_AR[k]);
         hedop_IC->Fill(edop[k]);
 	 if((goddess->tdc0)>500 && (goddess->tdc0)<900){ 
 	   hedop_ICTDC->Fill(edop[k]);
@@ -872,7 +882,9 @@ void Sortcode::SortData(Int_t RunNum){
     /* ***************************************************************************************************** */
     /* ***************************************************************************************************** */
     
-
+	for(s=0;s<SiMult;s++){
+	   hExvicE->Fill(icEcorr,Ex[s]);
+	}
      // Filling Ex vs gamma ray energy spectra, for all silicon
     for(s=0;s<SiMult;s++){
       for(k=0;k<crysMult;k++){
@@ -1075,7 +1087,7 @@ void Sortcode::SortData(Int_t RunNum){
   hICCor_EdE_tdc0->Write();
   huQEvTh->Write();
   huQEvBStrip->Write();
-
+  hExvicE->Write();
 
   htdc0->Write();
   htdc0_dp->Write();
@@ -1151,7 +1163,7 @@ TLorentzVector Sortcode::GetRecoilVector(int uq){
   double p4 = sqrt((recoil_4p.E()*recoil_4p.E()) - m4*m4);
   return recoil_4p;
 }
-
+/*
 // Calculate recoil vector based on P3, E3, theta and phi
 TLorentzVector Sortcode::GetRecoilVector(double P3, double E3, double Theta, double Phi){
 
@@ -1172,7 +1184,7 @@ TLorentzVector Sortcode::GetRecoilVector(double P3, double E3, double Theta, dou
   double p4 = sqrt((recoil_4p.E()*recoil_4p.E()) - m4*m4);
   return recoil_4p;
 }
-
+*/
 TGraph* Sortcode::MakeCatKinematics(double Ex){
 
   TGraph *g = new TGraph();
